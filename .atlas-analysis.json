@@ -1,0 +1,158 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "MovieLite",
+  "projectDescription": "Performance-focused Python video editing library, powered by Numba JIT compilation",
+  "theme": "palm",
+  "primaryColor": "#040404",
+  "lightColor": "#354dc4",
+  "darkColor": "#94a4e4",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/clips",
+              "concepts/video-writer",
+              "concepts/effects",
+              "concepts/audio-mixing"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/basic-editing",
+              "guides/text-overlays",
+              "guides/transitions",
+              "guides/masking",
+              "guides/custom-effects",
+              "guides/performance"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": [
+              "examples/overview",
+              "examples/effects-showcase",
+              "examples/text-animations",
+              "examples/audio-mixing",
+              "examples/advanced-compositing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core Classes",
+            "pages": [
+              "api/video-clip",
+              "api/alpha-video-clip",
+              "api/image-clip",
+              "api/text-clip",
+              "api/audio-clip",
+              "api/video-writer"
+            ]
+          },
+          {
+            "group": "Effects",
+            "pages": [
+              "api/vfx/overview",
+              "api/vfx/fade",
+              "api/vfx/blur",
+              "api/vfx/color",
+              "api/vfx/zoom",
+              "api/vfx/glitch",
+              "api/vfx/rotation",
+              "api/vfx/vignette"
+            ]
+          },
+          {
+            "group": "Transitions",
+            "pages": [
+              "api/vtx/overview",
+              "api/vtx/crossfade",
+              "api/vtx/dissolve",
+              "api/vtx/blur-dissolve"
+            ]
+          },
+          {
+            "group": "Audio Effects",
+            "pages": [
+              "api/afx/overview",
+              "api/afx/fade"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/enums",
+              "api/logger"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Additional",
+            "pages": [
+              "resources/migration-from-moviepy",
+              "resources/performance-benchmarks",
+              "resources/changelog",
+              "resources/contributing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "3-4x faster than MoviePy for common video editing tasks",
+    "Numba JIT compilation for critical rendering operations",
+    "Chainable API for intuitive video editing workflows",
+    "Built-in visual effects (vfx), audio effects (afx), and transitions (vtx)",
+    "Multiprocessing support for parallel rendering",
+    "Frame-by-frame processing with full control",
+    "Alpha channel and masking support",
+    "Text rendering with pictex integration"
+  ],
+  "publicApiSurface": [
+    "VideoClip",
+    "AlphaVideoClip",
+    "ImageClip",
+    "TextClip",
+    "AudioClip",
+    "CompositeClip",
+    "AlphaCompositeClip",
+    "VideoWriter",
+    "VideoQuality",
+    "vfx.FadeIn",
+    "vfx.FadeOut",
+    "vfx.Blur",
+    "vfx.Brightness",
+    "vfx.Contrast",
+    "vfx.Saturation",
+    "vfx.Zoom",
+    "vfx.GlitchEffect",
+    "vfx.Rotation",
+    "vfx.Vignette",
+    "vtx.CrossFade",
+    "vtx.Dissolve",
+    "vtx.BlurDissolve",
+    "afx.FadeIn",
+    "afx.FadeOut"
+  ]
+}
