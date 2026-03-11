@@ -1,0 +1,603 @@
+---
+title: 'AudioClip'
+description: 'Load and process audio files with effects and transformations'
+---
+
+## Overview
+
+`AudioClip` handles audio loading, processing, and effects. Audio is stored as float32 in range [-1.0, 1.0] and processed using FFmpeg for accurate seeking and format conversion.
+
+<Info>
+When you load a [`VideoClip`](/api/video-clip), its audio track is automatically available via the `video.audio` property.
+</Info>
+
+Defined in: `src/movielite/audio/audio_clip.py:15`
+
+## Constructor
+
+```python
+AudioClip(path: str, start: float = 0, duration: Optional[float] = None, volume: float = 1.0, offset: float = 0)
+```
+
+<ParamField path="path" type="str" required>
+  Path to the audio file (or video file with audio track)
+</ParamField>
+
+<ParamField path="start" type="float" default="0">
+  Start time in the composition timeline (seconds)
+</ParamField>
+
+<ParamField path="duration" type="float" default="None">
+  Duration to use from the audio. If `None`, uses the full audio duration
+</ParamField>
+
+<ParamField path="volume" type="float" default="1.0">
+  Volume multiplier (0.0 to 1.0+, where 1.0 = 100%)
+</ParamField>
+
+<ParamField path="offset" type="float" default="0">
+  Start offset within the audio file (seconds)
+</ParamField>
+
+### Example
+
+```python
+from movielite import AudioClip
+
+# Load full audio
+audio = AudioClip("music.mp3")
+
+# Load with volume and offset
+audio = AudioClip("sound.wav", start=5, volume=0.7, offset=2)
+
+# Load specific duration
+audio = AudioClip("background.mp3", duration=30, volume=0.5)
+```
+
+## Properties
+
+### path
+
+```python
+@property
+path -> str
+```
+
+Path to the audio file.
+
+**Returns:** File path string
+
+Defined in: `src/movielite/audio/audio_clip.py:360`
+
+---
+
+### volume
+
+```python
+@property
+volume -> float
+```
+
+Volume multiplier (0.0 to 1.0+).
+
+**Returns:** Current volume level
+
+Defined in: `src/movielite/audio/audio_clip.py:365`
+
+---
+
+### offset
+
+```python
+@property
+offset -> float
+```
+
+Offset within the source audio file (seconds).
+
+**Returns:** Current offset in seconds
+
+Defined in: `src/movielite/audio/audio_clip.py:370`
+
+---
+
+### sample_rate
+
+```python
+@property
+sample_rate -> int
+```
+
+Sample rate in Hz (e.g., 44100, 48000).
+
+**Returns:** Sample rate
+
+Defined in: `src/movielite/audio/audio_clip.py:375`
+
+---
+
+### channels
+
+```python
+@property
+channels -> int
+```
+
+Number of audio channels (1 = mono, 2 = stereo).
+
+**Returns:** Channel count
+
+Defined in: `src/movielite/audio/audio_clip.py:380`
+
+---
+
+### has_audio
+
+```python
+@property
+has_audio -> bool
+```
+
+Whether this clip has actual audio (False for silent/no audio clips).
+
+**Returns:** True if audio exists, False otherwise
+
+Defined in: `src/movielite/audio/audio_clip.py:385`
+
+---
+
+### Inherited Properties
+
+From MediaClip:
+- `start` (float): Start time in the composition
+- `duration` (float): Duration in the timeline (accounts for speed)
+- `end` (float): End time in the composition
+- `speed` (float): Playback speed multiplier
+
+## Methods
+
+### get_samples
+
+```python
+get_samples(start: float = 0, end: Optional[float] = None) -> np.ndarray
+```
+
+Get audio samples as numpy array. This loads all requested samples into memory at once.
+
+<Warning>
+For long audio clips, use `iter_chunks()` instead to avoid loading everything into memory.
+</Warning>
+
+<ParamField path="start" type="float" default="0">
+  Start time relative to this clip's offset (seconds)
+</ParamField>
+
+<ParamField path="end" type="float" default="None">
+  End time relative to this clip's offset (seconds, None = until the end)
+</ParamField>
+
+<ResponseField name="return" type="np.ndarray">
+  Numpy array of shape (n_samples, n_channels) with float32 values in [-1, 1]
+</ResponseField>
+
+**Example:**
+```python
+audio = AudioClip("music.mp3")
+samples = audio.get_samples(start=0, end=5)  # Get first 5 seconds
+print(samples.shape)  # (220500, 2) for 5s stereo at 44.1kHz
+```
+
+Defined in: `src/movielite/audio/audio_clip.py:210`
+
+---
+
+### iter_chunks
+
+```python
+iter_chunks(chunk_duration: float = 5.0) -> Iterator[Tuple[np.ndarray, float]]
+```
+
+Iterate over audio chunks sequentially. Each chunk is loaded on-demand with effects applied.
+
+<ParamField path="chunk_duration" type="float" default="5.0">
+  Duration of each chunk in seconds (default: 5.0s ≈ 850KB for stereo 44.1kHz)
+</ParamField>
+
+<ResponseField name="yields" type="Tuple[np.ndarray, float]">
+  Tuple of (processed_samples, chunk_start_time) where:
+  - processed_samples: np.ndarray of shape (n_samples, n_channels) with float32 in [-1, 1]
+  - chunk_start_time: Absolute start time of this chunk in the original file
+</ResponseField>
+
+**Example:**
+```python
+audio = AudioClip("long_music.mp3")
+
+for samples, start_time in audio.iter_chunks(chunk_duration=10.0):
+    print(f"Processing chunk at {start_time}s: {samples.shape}")
+    # Process chunk (e.g., write to file, apply effect, etc.)
+```
+
+Defined in: `src/movielite/audio/audio_clip.py:178`
+
+---
+
+### subclip
+
+```python
+subclip(start: float, end: float) -> AudioClip
+```
+
+Extract a portion of this audio clip.
+
+<ParamField path="start" type="float" required>
+  Start time within this clip (seconds)
+</ParamField>
+
+<ParamField path="end" type="float" required>
+  End time within this clip (seconds)
+</ParamField>
+
+<ResponseField name="return" type="AudioClip">
+  New AudioClip instance
+</ResponseField>
+
+**Raises:**
+- `ValueError`: If the range is invalid
+
+**Example:**
+```python
+audio = AudioClip("song.mp3")  # 180 second song
+chorus = audio.subclip(60, 90)  # Extract 30-second chorus
+```
+
+Defined in: `src/movielite/audio/audio_clip.py:301`
+
+---
+
+### set_volume
+
+```python
+set_volume(volume: float) -> Self
+```
+
+Set the volume of this audio clip.
+
+<ParamField path="volume" type="float" required>
+  Volume multiplier (0.0 to 1.0+, where 1.0 = 100%, 0.5 = 50%, 2.0 = 200%)
+</ParamField>
+
+<ResponseField name="return" type="AudioClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+audio = AudioClip("music.mp3")
+audio.set_volume(0.5)  # 50% volume
+audio.set_volume(2.0)  # 200% volume (may clip)
+```
+
+Defined in: `src/movielite/audio/audio_clip.py:329`
+
+---
+
+### set_volume_curve
+
+```python
+set_volume_curve(curve: Union[Callable[[float], float], float]) -> Self
+```
+
+Set a volume curve that changes over time.
+
+<ParamField path="curve" type="Union[float, Callable[[float], float]]" required>
+  Either a float (constant volume) or a function that takes time (seconds) and returns volume multiplier
+</ParamField>
+
+<ResponseField name="return" type="AudioClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+# Gradual volume increase (fade in manually)
+audio.set_volume_curve(lambda t: min(1.0, t / 5.0))
+
+# Fade out
+audio.set_volume_curve(lambda t: max(0.0, 1.0 - t / 10.0))
+
+# Constant volume
+audio.set_volume_curve(0.7)
+```
+
+Defined in: `src/movielite/audio/audio_clip.py:264`
+
+---
+
+### set_offset
+
+```python
+set_offset(offset: float) -> Self
+```
+
+Set the offset within the source audio file.
+
+<ParamField path="offset" type="float" required>
+  Offset in seconds (must be >= 0)
+</ParamField>
+
+<ResponseField name="return" type="AudioClip">
+  Self for method chaining
+</ResponseField>
+
+**Raises:**
+- `ValueError`: If offset is negative
+
+**Example:**
+```python
+audio = AudioClip("podcast.mp3")
+audio.set_offset(30)  # Skip first 30 seconds
+```
+
+Defined in: `src/movielite/audio/audio_clip.py:342`
+
+---
+
+### loop
+
+```python
+loop(enabled: bool = True) -> Self
+```
+
+Enable or disable looping for this audio clip. When enabled, the audio restarts from the beginning when it reaches the end.
+
+<ParamField path="enabled" type="bool" default="True">
+  Whether to enable looping
+</ParamField>
+
+<ResponseField name="return" type="AudioClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+background_music = AudioClip("loop.mp3", duration=60)
+background_music.loop(True)  # Loop for the full 60 seconds
+```
+
+Defined in: `src/movielite/audio/audio_clip.py:390`
+
+---
+
+### add_effect
+
+```python
+add_effect(effect: AudioEffect) -> Self
+```
+
+Apply an audio effect to this clip.
+
+<ParamField path="effect" type="AudioEffect" required>
+  An AudioEffect instance from `movielite.afx`
+</ParamField>
+
+<ResponseField name="return" type="AudioClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+from movielite import afx
+
+audio = AudioClip("voice.mp3")
+audio.add_effect(afx.FadeIn(2.0)).add_effect(afx.FadeOut(1.5))
+```
+
+Defined in: `src/movielite/audio/audio_clip.py:404`
+
+---
+
+### add_transform
+
+```python
+add_transform(callback: Callable[[np.ndarray, float, int], np.ndarray]) -> Self
+```
+
+Apply a custom transformation to audio samples at render time. Multiple transformations can be chained.
+
+<ParamField path="callback" type="Callable[[np.ndarray, float, int], np.ndarray]" required>
+  Function that takes (samples, time, sample_rate) and returns transformed samples:
+  - samples: np.ndarray of shape (n_samples, n_channels) with float32 values in [-1, 1]
+  - time: absolute time in seconds (start time of this sample chunk in the original file)
+  - sample_rate: sample rate in Hz
+</ParamField>
+
+<ResponseField name="return" type="AudioClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+import numpy as np
+
+def apply_reverb(samples, t, sr):
+    # Simple delay-based reverb
+    delay_samples = int(0.1 * sr)  # 100ms delay
+    reverb = np.zeros_like(samples)
+    reverb[delay_samples:] = samples[:-delay_samples] * 0.3
+    return samples + reverb
+
+audio.add_transform(apply_reverb)
+```
+
+Defined in: `src/movielite/audio/audio_clip.py:237`
+
+---
+
+### Inherited Methods
+
+From MediaClip:
+- `set_start(start)` - Set start time
+- `set_duration(duration)` - Set duration
+- `set_speed(speed)` - Set playback speed
+- `set_end(end)` - Set end time
+
+## Speed Control and Audio Processing
+
+<Accordion title="How audio speed is handled">
+
+### Speed Adjustment
+
+When you call `set_speed()`, AudioClip uses FFmpeg's `atempo` filter for high-quality time stretching.
+
+Defined in `audio_clip.py:115-128`:
+
+```python
+# atempo filter only supports range [0.5, 2.0]
+# Multiple filters are chained for larger speed changes
+if self._speed != 1.0:
+    atempo_filters = []
+    remaining_speed = self._speed
+    while remaining_speed > 2.0:
+        atempo_filters.append("atempo=2.0")
+        remaining_speed /= 2.0
+    while remaining_speed < 0.5:
+        atempo_filters.append("atempo=0.5")
+        remaining_speed /= 0.5
+    if remaining_speed != 1.0:
+        atempo_filters.append(f"atempo={remaining_speed}")
+```
+
+### Example
+
+```python
+audio = AudioClip("speech.mp3")
+audio.set_speed(1.5)  # 1.5x speed (faster)
+audio.set_speed(0.75)  # 0.75x speed (slower)
+audio.set_speed(4.0)  # Uses chained filters: atempo=2.0,atempo=2.0
+```
+
+</Accordion>
+
+## Complete Examples
+
+### Example 1: Background Music with Fade
+
+```python
+from movielite import VideoClip, AudioClip, VideoWriter, afx
+
+video = VideoClip("video.mp4")
+video.audio.set_volume(0.3)  # Lower original audio
+
+# Add background music
+music = AudioClip("music.mp3", start=0, duration=video.duration, volume=0.6)
+music.loop(True)  # Loop to match video duration
+music.add_effect(afx.FadeIn(2.0))
+music.add_effect(afx.FadeOut(3.0))
+
+writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.add_clip(music)
+writer.write()
+```
+
+### Example 2: Audio Ducking (Lower Music During Speech)
+
+```python
+from movielite import AudioClip, VideoWriter
+
+music = AudioClip("background.mp3", duration=60, volume=0.7)
+
+# Duck music volume during speech segments
+def volume_curve(t):
+    # Lower volume from 10-20s and 40-50s (when speech plays)
+    if (10 <= t <= 20) or (40 <= t <= 50):
+        return 0.2  # Reduced volume
+    return 1.0  # Normal volume
+
+music.set_volume_curve(volume_curve)
+```
+
+### Example 3: Speed Ramping
+
+```python
+from movielite import VideoClip, VideoWriter
+
+video = VideoClip("action.mp4", duration=10)
+
+# Gradually speed up from 1x to 2x over 10 seconds
+video.set_speed(1.0)
+video.audio.set_speed(1.0)
+
+# Note: For variable speed, you'd need to split into segments
+for i in range(10):
+    segment = video.subclip(i, i+1)
+    speed = 1.0 + (i / 10.0)  # 1.0 to 2.0
+    segment.set_speed(speed)
+    # Add segment to composition
+```
+
+### Example 4: Custom Echo Effect
+
+```python
+import numpy as np
+from movielite import AudioClip, VideoWriter
+
+audio = AudioClip("voice.mp3")
+
+def add_echo(samples, t, sr):
+    """Add echo effect with 300ms delay and 40% feedback"""
+    delay_samples = int(0.3 * sr)  # 300ms
+    echo = np.zeros_like(samples)
+    
+    if len(samples) > delay_samples:
+        echo[delay_samples:] = samples[:-delay_samples] * 0.4
+    
+    # Mix original with echo, normalize to prevent clipping
+    result = samples + echo
+    max_val = np.abs(result).max()
+    if max_val > 1.0:
+        result = result / max_val
+    
+    return result
+
+audio.add_transform(add_echo)
+```
+
+### Example 5: Multi-Track Audio Mixing
+
+```python
+from movielite import VideoClip, AudioClip, VideoWriter
+
+video = VideoClip("video.mp4")
+video.audio.set_volume(0.0)  # Mute original audio
+
+# Multiple audio tracks
+narration = AudioClip("narration.mp3", start=0, volume=1.0)
+music = AudioClip("music.mp3", start=0, duration=video.duration, volume=0.4)
+music.loop(True)
+
+sound_effect = AudioClip("whoosh.wav", start=5, volume=0.8)
+
+writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.add_clips([narration, music, sound_effect])
+writer.write()
+```
+
+## Audio Format Support
+
+AudioClip supports all formats that FFmpeg can decode:
+
+- MP3 (`.mp3`)
+- WAV (`.wav`)
+- AAC (`.m4a`, `.aac`)
+- FLAC (`.flac`)
+- OGG (`.ogg`)
+- Video files (`.mp4`, `.mov`, `.avi`, etc.) - extracts audio track
+
+## See Also
+
+- [`VideoClip`](/api/video-clip) - Video clips (includes audio property)
+- [`VideoWriter`](/api/video-writer) - For rendering with audio mixing
+- [Audio Effects (`afx`)](/api/afx/overview) - Built-in audio effects

@@ -1,0 +1,130 @@
+---
+title: 'vtx - Video Transitions'
+description: 'Video transition effects for smoothly blending between clips'
+---
+
+## Overview
+
+The `movielite.vtx` module provides video transition effects for creating smooth blends between graphic clips. Transitions modify clip opacity and visual effects to create professional-looking scene changes.
+
+## Available Transitions
+
+<CardGroup cols={2}>
+  <Card title="CrossFade" icon="layer-group" href="/api/vtx/crossfade">
+    Smoothly blends from one clip to another by cross-fading video and audio
+  </Card>
+  
+  <Card title="Dissolve" icon="droplet" href="/api/vtx/dissolve">
+    Alias for CrossFade - gradually dissolves from one clip to another
+  </Card>
+  
+  <Card title="BlurDissolve" icon="blur" href="/api/vtx/blur-dissolve">
+    Blurs and fades out the first clip while the second clip fades in sharply
+  </Card>
+</CardGroup>
+
+## Key Concepts
+
+### Clip Overlap Requirements
+
+Most transitions require **overlapping clips** to work properly:
+
+```python
+from movielite import VideoClip, vtx
+
+# Clips MUST overlap for CrossFade/Dissolve
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.5, duration=5)  # 0.5s overlap
+
+# Apply transition during the overlap period
+transition = vtx.CrossFade(duration=0.5)
+clip1.add_transition(clip2, transition)
+```
+
+<Note>
+  The overlap duration must be **at least** as long as the transition duration. For example, a 1-second crossfade requires at least 1 second of overlap between clips.
+</Note>
+
+### BlurDissolve Exception
+
+**BlurDissolve** is unique - it does NOT require overlapping clips:
+
+```python
+# BlurDissolve works with consecutive clips (no overlap needed)
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=5.0, duration=5)  # No overlap
+
+transition = vtx.BlurDissolve(duration=1.0, max_blur=21)
+clip1.add_transition(clip2, transition)
+```
+
+## Usage Pattern
+
+All transitions follow the same application pattern:
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+# 1. Create clips with proper timing
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.0, duration=5)  # 1.0s overlap
+
+# 2. Create and apply transition
+transition = vtx.CrossFade(duration=1.0)
+clip1.add_transition(clip2, transition)
+
+# 3. Write output
+total_duration = clip1.duration + clip2.duration - 1.0  # Account for overlap
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+## Transition Classes
+
+All transition classes inherit from the base `Transition` class and implement the `apply()` method:
+
+- **[CrossFade](/api/vtx/crossfade)** - Video and audio crossfade with opacity blending
+- **[Dissolve](/api/vtx/dissolve)** - Alias for CrossFade (same behavior)
+- **[BlurDissolve](/api/vtx/blur-dissolve)** - Blur effect combined with fade transition
+
+## Common Use Cases
+
+### Multiple Transitions
+
+Chain multiple clips with different transitions:
+
+```python
+clip1 = VideoClip("scene1.mp4", start=0, duration=4)
+clip2 = VideoClip("scene2.mp4", start=3.5, duration=4)  # 0.5s overlap
+clip3 = VideoClip("scene3.mp4", start=7.0, duration=4)  # 0.5s overlap
+
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+clip2.add_transition(clip3, vtx.Dissolve(duration=0.5))
+```
+
+### Image Slideshow
+
+Create smooth photo slideshows:
+
+```python
+from movielite import ImageClip, vtx
+
+images = [
+    ImageClip("photo1.jpg", start=0, duration=3),
+    ImageClip("photo2.jpg", start=2.5, duration=3),     # 0.5s overlap
+    ImageClip("photo3.jpg", start=5.0, duration=3),     # 0.5s overlap
+]
+
+for i in range(len(images) - 1):
+    images[i].add_transition(images[i + 1], vtx.CrossFade(duration=0.5))
+```
+
+## Related Modules
+
+- [vfx](/api/vfx/overview) - Visual effects (color, blur, etc.)
+- [VideoClip](/api/video/video-clip) - Video clip base class
+- [GraphicClip](/api/core/graphic-clip) - Base class for all visual clips

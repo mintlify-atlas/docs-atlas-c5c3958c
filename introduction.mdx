@@ -1,0 +1,180 @@
+---
+title: Introduction
+description: A fast and intuitive Python video editing library, designed as a lightweight alternative to MoviePy
+---
+
+## Welcome to MovieLite
+
+MovieLite is a Python video editing library built with a focus on **speed and simplicity for common workflows**. It offers a clean, chainable API that will feel familiar to MoviePy users, but delivers significant performance gains for CPU-based rendering.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get started with your first video in minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Install MovieLite and its dependencies
+  </Card>
+</CardGroup>
+
+## Key Features
+
+MovieLite is designed to make video editing fast, intuitive, and powerful:
+
+<CardGroup cols={2}>
+  <Card title="Performance Optimized" icon="bolt">
+    Uses Numba JIT compilation for critical rendering operations, delivering **up to 4.6x faster** performance than MoviePy for complex compositions
+  </Card>
+  <Card title="Clean API" icon="code">
+    Chainable methods for intuitive video editing workflows that feel natural and readable
+  </Card>
+  <Card title="Comprehensive Effects" icon="wand-magic-sparkles">
+    Built-in visual effects (vfx), audio effects (afx), and transitions (vtx) for professional-quality results
+  </Card>
+  <Card title="Multiprocessing Support" icon="microchip">
+    Parallel rendering for faster video generation on multi-core systems
+  </Card>
+  <Card title="Frame-by-Frame Control" icon="film">
+    Full control over every frame and audio sample for precise editing
+  </Card>
+  <Card title="Audio Mixing" icon="music">
+    Mix multiple audio tracks with per-sample control and effects
+  </Card>
+</CardGroup>
+
+## Performance Comparison
+
+MovieLite excels at common video editing tasks. Performance improvements come from:
+
+1. **Numba JIT compilation** - Critical rendering loops are compiled to native code
+2. **Optimized compositing** - Efficient alpha blending and frame composition
+3. **Memory management** - Streaming architecture reduces memory footprint
+4. **Multiprocessing** - Parallel frame rendering for multi-core systems
+
+### Benchmark Results
+
+Real-world benchmarks comparing MovieLite with MoviePy 2.2.1 (1280x720 video, 30fps):
+
+| Task | MovieLite | MoviePy | Speedup |
+|------|-----------|---------|----------|
+| No processing | 6.34s | 6.71s | **1.06x** 🚀 |
+| Video zoom | 9.52s | 31.81s | **3.34x** 🚀 |
+| Fade in/out | 8.53s | 9.03s | **1.06x** 🚀 |
+| Text overlay | 7.82s | 35.35s | **4.52x** 🚀 |
+| Video overlay | 18.22s | 75.47s | **3.14x** 🚀 |
+| Alpha video overlay | 10.75s | 42.11s | **3.92x** 🚀 |
+| Complex mix* | 38.07s | 175.31s | **4.61x** 🚀 |
+| **Total** | **99.24s** | **375.79s** | **3.79x** 🚀 |
+
+<Info>
+*Complex mix includes: video with zoom + fade, image clips with fade, text overlay, video overlay - all composed together.
+</Info>
+
+<Note>
+MovieLite excels at:
+- Transform operations (zoom, scale, resize) - **up to 3.34x faster**
+- Text overlays and compositing - **up to 4.52x faster**
+- Video overlays and layering - **up to 3.14x faster**
+- Alpha channel compositing - **up to 3.92x faster**
+- Complex multi-effect compositions - **up to 4.61x faster**
+</Note>
+
+## Architecture
+
+### Frame-by-Frame Processing
+
+Like MoviePy, MovieLite operates on a frame-by-frame basis:
+
+```python
+# Every frame is individually processed
+for frame_idx in range(total_frames):
+    t = frame_idx / fps
+    frame = clip.get_frame(t)  # Get raw frame
+    frame = apply_transforms(frame, t)  # Apply effects
+    frame = blend_with_other_clips(frame, t)  # Composite
+    write_frame_to_output(frame)
+```
+
+This approach provides:
+- Complete control over every pixel
+- Ability to apply time-based effects
+- Support for complex compositing operations
+- Memory efficiency through streaming
+
+### Numba Optimization
+
+Critical operations are JIT-compiled with Numba for near-native performance:
+
+```python
+@numba.jit(nopython=True, cache=True)
+def blend_foreground_with_bgr_background_inplace(
+    background, foreground, x, y, opacity, mask, ...
+):
+    # Pixel-perfect alpha blending at native speed
+    ...
+```
+
+This provides near-native performance for:
+- Alpha blending operations
+- Pixel-wise transformations
+- Color space conversions
+
+## What MovieLite Supports
+
+### Video Capabilities
+
+- Video clips with frame-level access
+- Alpha video clips (transparency support via `AlphaVideoClip`)
+- Image clips (static images as video frames)
+- Text rendering (via pictex library)
+- Mask support for advanced compositing effects
+- Video effects: fade, blur, color adjustments, vignette, zoom, glitch effects, rotation
+- Video transitions: crossfade, dissolve, blur dissolve
+- Position, scale, opacity, rotation, and size transformations
+- Custom frame transformations
+- Video looping
+- Playback speed control
+
+### Audio Capabilities
+
+- Audio clips with sample-level access
+- Audio effects: fade in/out
+- Volume control and volume curves
+- Multiple audio track mixing
+- Audio from video files
+- Custom audio transformations
+
+### Output Formats
+
+- **Video codec**: libx264 (H.264)
+- **Container format**: MP4
+- **Audio codec**: AAC
+- **Quality presets**: LOW, MIDDLE, HIGH, VERY_HIGH
+
+## Current Limitations
+
+<Warning>
+- Output is limited to MP4 format with libx264 codec
+- No GPU acceleration (CPU-based rendering only)
+</Warning>
+
+## Use Cases
+
+MovieLite is perfect for:
+
+- **Content Creators**: Quickly process and edit videos with effects and overlays
+- **Automation**: Batch process videos with consistent transformations
+- **Social Media**: Create engaging content with text overlays and transitions
+- **Data Visualization**: Generate videos from data and animations
+- **Education**: Create tutorial videos with annotations and effects
+- **Marketing**: Produce promotional videos with professional effects
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Install MovieLite and set up FFmpeg
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Create your first video in minutes
+  </Card>
+</CardGroup>

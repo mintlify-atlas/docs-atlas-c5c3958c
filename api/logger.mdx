@@ -1,0 +1,180 @@
+---
+title: 'Logger'
+description: 'Logging utilities for MovieLite'
+---
+
+The `logger` module provides centralized logging functionality for the MovieLite library.
+
+```python
+from movielite.logger import get_logger, set_log_level
+```
+
+## Functions
+
+### get_logger
+
+```python
+def get_logger() -> logging.Logger
+```
+
+Returns the MovieLite logger instance. Creates and configures the logger on first call.
+
+**Returns:** `logging.Logger` - The configured MovieLite logger instance
+
+#### Configuration
+
+The logger is configured with:
+- **Name:** `"movielite"`
+- **Default Level:** `logging.INFO`
+- **Handler:** `StreamHandler` to `sys.stdout`
+- **Format:** `'%(asctime)s - %(name)s - %(levelname)s - %(message)s'`
+- **Date Format:** `'%Y-%m-%d %H:%M:%S'`
+
+#### Behavior
+
+<Info>
+  The logger is a singleton - calling `get_logger()` multiple times returns the same logger instance.
+</Info>
+
+#### Example
+
+```python
+from movielite.logger import get_logger
+
+logger = get_logger()
+logger.info("Processing video clip")
+logger.warning("Audio file not found, using silence")
+logger.error("Failed to encode video")
+```
+
+**Output Format:**
+```
+2026-03-11 14:30:45 - movielite - INFO - Processing video clip
+2026-03-11 14:30:46 - movielite - WARNING - Audio file not found, using silence
+2026-03-11 14:30:47 - movielite - ERROR - Failed to encode video
+```
+
+---
+
+### set_log_level
+
+```python
+def set_log_level(level: int) -> None
+```
+
+Set the logging level for the MovieLite logger.
+
+<ParamField path="level" type="int" required>
+  The logging level to set. Use Python's standard logging level constants:
+  - `logging.DEBUG` (10)
+  - `logging.INFO` (20)
+  - `logging.WARNING` (30)
+  - `logging.ERROR` (40)
+  - `logging.CRITICAL` (50)
+</ParamField>
+
+**Returns:** `None`
+
+#### Example
+
+```python
+import logging
+from movielite.logger import get_logger, set_log_level
+
+# Enable debug logging
+set_log_level(logging.DEBUG)
+
+logger = get_logger()
+logger.debug("Debug information")
+logger.info("Processing started")
+```
+
+```python
+import logging
+from movielite.logger import set_log_level
+
+# Only show warnings and errors
+set_log_level(logging.WARNING)
+```
+
+<Note>
+  Calling `set_log_level()` automatically initializes the logger if it hasn't been created yet.
+</Note>
+
+---
+
+## Usage Examples
+
+### Basic Logging
+
+```python
+from movielite.logger import get_logger
+
+logger = get_logger()
+
+def process_video(video_path):
+    logger.info(f"Starting video processing: {video_path}")
+    try:
+        # Process video
+        logger.debug("Frame 1 processed")
+        logger.debug("Frame 2 processed")
+        logger.info("Video processing complete")
+    except Exception as e:
+        logger.error(f"Failed to process video: {e}")
+```
+
+### Adjusting Log Level
+
+```python
+import logging
+from movielite.logger import get_logger, set_log_level
+
+# Set to debug for development
+set_log_level(logging.DEBUG)
+logger = get_logger()
+logger.debug("This will be shown")
+
+# Set to warning for production
+set_log_level(logging.WARNING)
+logger.info("This will NOT be shown")
+logger.warning("This will be shown")
+```
+
+### Integration with MovieLite
+
+```python
+import logging
+from movielite import VideoEditor
+from movielite.logger import set_log_level
+
+# Enable verbose logging to see what MovieLite is doing
+set_log_level(logging.DEBUG)
+
+editor = VideoEditor()
+# MovieLite will now log detailed debug information
+```
+
+<Info>
+  MovieLite uses this logger internally for all library logging. Adjusting the log level affects all MovieLite operations.
+</Info>
+
+## Implementation Details
+
+The logger module uses a global singleton pattern:
+
+```python
+_logger = None  # Global logger instance
+
+def get_logger():
+    global _logger
+    if _logger is None:
+        # Initialize logger on first call
+        _logger = logging.getLogger("movielite")
+        # Configure handler and formatter
+        ...
+    return _logger
+```
+
+<Note>
+  The logger is lazily initialized - it's only created when first accessed via `get_logger()` or `set_log_level()`.
+</Note>

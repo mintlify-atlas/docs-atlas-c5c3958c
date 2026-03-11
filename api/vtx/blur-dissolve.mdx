@@ -1,0 +1,319 @@
+---
+title: 'BlurDissolve'
+description: 'Blur dissolve transition with progressive Gaussian blur effect'
+---
+
+## Overview
+
+The `BlurDissolve` transition creates a distinctive effect where the first clip progressively blurs and fades out, while the second clip fades in sharply (without blur). This creates a dreamy, cinematic transition effect.
+
+<Info>
+  **Unique feature**: Unlike CrossFade and Dissolve, BlurDissolve does **NOT require overlapping clips**. It can work with consecutive clips or clips with gaps.
+</Info>
+
+## Constructor
+
+```python
+from movielite import vtx
+
+transition = vtx.BlurDissolve(duration, max_blur=21)
+```
+
+### Parameters
+
+<ParamField path="duration" type="float" required>
+  Duration of the blur dissolve effect in seconds. This controls how long the blur and fade transitions take.
+</ParamField>
+
+<ParamField path="max_blur" type="int" default="21">
+  Maximum blur intensity (Gaussian kernel size). Must be an odd number. The blur progressively increases from 1 to this value during the transition.
+  
+  - **Default**: 21 (strong blur)
+  - **Range**: Any odd integer ≥ 3
+  - **Auto-correction**: Even values are automatically incremented to the next odd number
+  
+  **Blur intensity guide**:
+  - `3-7`: Subtle blur
+  - `9-15`: Moderate blur  
+  - `17-25`: Strong blur (default)
+  - `27+`: Very strong blur
+</ParamField>
+
+## Methods
+
+### apply()
+
+Apply the blur dissolve transition between two clips.
+
+```python
+transition.apply(clip1, clip2)
+```
+
+#### Parameters
+
+<ParamField path="clip1" type="GraphicClip" required>
+  The outgoing clip that will blur and fade out at the end. The blur+fade occurs during the last `duration` seconds of this clip.
+</ParamField>
+
+<ParamField path="clip2" type="GraphicClip" required>
+  The incoming clip that will fade in sharply (no blur) at the beginning. The fade-in occurs during the first `duration` seconds of this clip.
+</ParamField>
+
+#### Raises
+
+- **ValueError**: If clips are not in proper sequence (clip2 must start at or after clip1)
+
+## How It Works
+
+### Clip1 (Outgoing)
+
+During the last `duration` seconds:
+
+1. **Progressive blur**: Gaussian blur kernel size increases from 1 to `max_blur`
+2. **Fade out**: Opacity decreases from 1.0 to 0.0
+3. Both effects happen simultaneously
+
+### Clip2 (Incoming)
+
+During the first `duration` seconds:
+
+1. **Fade in**: Opacity increases from 0.0 to 1.0
+2. **No blur**: Remains sharp throughout
+
+### Visual Effect
+
+The outgoing clip becomes progressively blurrier and transparent, creating a dreamy "out of focus" effect, while the incoming clip appears sharply.
+
+## Usage Examples
+
+### Basic Blur Dissolve (No Overlap Required)
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+# Clips can be consecutive (no overlap needed!)
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=5.0, duration=5)  # No overlap
+
+# Apply blur dissolve with default blur intensity
+transition = vtx.BlurDissolve(duration=1.0)
+clip1.add_transition(clip2, transition)
+
+total_duration = 10.0  # Full 5 + 5 seconds (no overlap to subtract)
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+### Custom Blur Intensity
+
+```python
+# Subtle blur (max_blur=9)
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.0, duration=5)  # 1s overlap (optional)
+
+transition = vtx.BlurDissolve(duration=1.0, max_blur=9)
+clip1.add_transition(clip2, transition)
+```
+
+```python
+# Very strong blur (max_blur=31)
+transition = vtx.BlurDissolve(duration=1.5, max_blur=31)
+clip1.add_transition(clip2, transition)
+```
+
+### Slow, Dreamy Transition
+
+```python
+# Longer duration with strong blur creates cinematic effect
+clip1 = VideoClip("scene1.mp4", start=0, duration=8)
+clip2 = VideoClip("scene2.mp4", start=8.0, duration=8)
+
+# 2.5 second slow blur dissolve
+transition = vtx.BlurDissolve(duration=2.5, max_blur=25)
+clip1.add_transition(clip2, transition)
+
+total_duration = 16.0
+
+writer = VideoWriter("dreamy.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+```
+
+### Multiple Blur Dissolves
+
+```python
+# Create sequence with varying blur intensities
+clip1 = VideoClip("scene1.mp4", start=0, duration=4)
+clip2 = VideoClip("scene2.mp4", start=4.0, duration=4)
+clip3 = VideoClip("scene3.mp4", start=8.0, duration=4)
+
+# Vary the blur intensity for different effects
+clip1.add_transition(clip2, vtx.BlurDissolve(duration=0.8, max_blur=15))
+clip2.add_transition(clip3, vtx.BlurDissolve(duration=1.2, max_blur=25))
+
+total_duration = 12.0
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2, clip3])
+writer.write()
+```
+
+### With Overlapping Clips
+
+```python
+# BlurDissolve also works with overlapping clips
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.0, duration=5)  # 1s overlap
+
+transition = vtx.BlurDissolve(duration=1.0, max_blur=21)
+clip1.add_transition(clip2, transition)
+
+# Account for overlap in total duration
+total_duration = clip1.duration + clip2.duration - 1.0  # 9 seconds
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+```
+
+### Image Slideshow with Blur Effect
+
+```python
+from movielite import ImageClip, VideoWriter, vtx
+
+# Create dreamy photo slideshow
+images = [
+    ImageClip("photo1.jpg", start=0, duration=3),
+    ImageClip("photo2.jpg", start=3.0, duration=3),     # No overlap needed
+    ImageClip("photo3.jpg", start=6.0, duration=3),
+]
+
+# Apply blur dissolve between images
+for i in range(len(images) - 1):
+    images[i].add_transition(images[i + 1], vtx.BlurDissolve(duration=0.8, max_blur=17))
+
+total_duration = 9.0
+
+writer = VideoWriter("slideshow.mp4", fps=30, size=images[0].size, duration=total_duration)
+writer.add_clips(images)
+writer.write()
+```
+
+## Comparison with CrossFade/Dissolve
+
+| Feature | BlurDissolve | CrossFade/Dissolve |
+|---------|--------------|--------------------|
+| **Overlap required** | No (works with consecutive clips) | Yes (must overlap by at least `duration`) |
+| **Outgoing clip effect** | Progressive blur + fade out | Fade out only |
+| **Incoming clip effect** | Fade in (sharp) | Fade in only |
+| **Visual style** | Dreamy, cinematic | Clean, professional |
+| **Audio crossfade** | No | Yes |
+
+## Blur Intensity Examples
+
+Choosing the right `max_blur` value:
+
+```python
+# Subtle blur - good for professional/corporate videos
+vtx.BlurDissolve(duration=1.0, max_blur=7)
+
+# Moderate blur - balanced effect
+vtx.BlurDissolve(duration=1.0, max_blur=15)
+
+# Strong blur - default, good for most cases
+vtx.BlurDissolve(duration=1.0, max_blur=21)
+
+# Very strong blur - dramatic/artistic effect
+vtx.BlurDissolve(duration=1.0, max_blur=31)
+```
+
+<Note>
+  Higher `max_blur` values increase processing time as they require larger Gaussian kernel operations on each frame.
+</Note>
+
+## Common Use Cases
+
+### Dream Sequences
+
+```python
+# Transition to dream/flashback with strong blur
+real_scene = VideoClip("reality.mp4", start=0, duration=5)
+dream_scene = VideoClip("dream.mp4", start=5.0, duration=8)
+
+# Heavy blur for surreal effect
+transition = vtx.BlurDissolve(duration=2.0, max_blur=35)
+real_scene.add_transition(dream_scene, transition)
+```
+
+### Time Passing Effect
+
+```python
+# Show passage of time with blur
+morning = VideoClip("morning.mp4", start=0, duration=4)
+evening = VideoClip("evening.mp4", start=4.0, duration=4)
+
+transition = vtx.BlurDissolve(duration=1.5, max_blur=21)
+morning.add_transition(evening, transition)
+```
+
+### Soft Photo Montage
+
+```python
+# Gentle blur for photo montages
+from movielite import ImageClip
+
+photo1 = ImageClip("memory1.jpg", start=0, duration=4)
+photo2 = ImageClip("memory2.jpg", start=4.0, duration=4)
+
+# Soft blur for nostalgic feel
+transition = vtx.BlurDissolve(duration=1.0, max_blur=13)
+photo1.add_transition(photo2, transition)
+```
+
+## Implementation Details
+
+The blur dissolve is implemented using:
+
+1. **Gaussian Blur**: Applied using OpenCV's `cv2.GaussianBlur()` with progressively increasing kernel size
+2. **Kernel size calculation**: Linearly interpolated from 1 to `max_blur` based on transition progress
+3. **Opacity modification**: Same fade-out/fade-in technique as CrossFade
+4. **Transform function**: Applied as a frame transform to clip1 during the last `duration` seconds
+
+Source code reference: `/home/daytona/workspace/source/src/movielite/vtx/blur_dissolve.py:15`
+
+### Kernel Size Auto-Correction
+
+Gaussian blur requires odd kernel sizes. The constructor automatically adjusts:
+
+```python
+# Even values are incremented
+vtx.BlurDissolve(duration=1.0, max_blur=20)  # Becomes max_blur=21
+vtx.BlurDissolve(duration=1.0, max_blur=14)  # Becomes max_blur=15
+
+# Minimum value enforced
+vtx.BlurDissolve(duration=1.0, max_blur=1)   # Becomes max_blur=3
+```
+
+## Performance Considerations
+
+<Warning>
+  **Processing intensive**: Blur operations are computationally expensive. Higher `max_blur` values and longer `duration` increase render time.
+</Warning>
+
+Optimization tips:
+
+- Use lower `max_blur` values (7-15) for faster rendering
+- Keep `duration` reasonable (0.5-2.0 seconds)
+- Consider reducing video resolution if render time is too long
+
+## See Also
+
+- [CrossFade](/api/vtx/crossfade) - Clean crossfade without blur
+- [Dissolve](/api/vtx/dissolve) - Alias for CrossFade
+- [vtx Overview](/api/vtx/overview) - All video transitions
+- [Blur effect](/api/vfx/blur) - Apply blur to individual clips

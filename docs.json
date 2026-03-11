@@ -1,122 +1,139 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "MovieLite",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#040404",
+    "light": "#354dc4",
+    "dark": "#94a4e4"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/a366bcb1-d3bf-4d37-b35e-fb6552771ee3.png",
+  "logo": {
+    "light": "https://media.brand.dev/6874b017-b58c-436a-b194-5235b151d6d5.svg",
+    "dark": "https://media.brand.dev/6874b017-b58c-436a-b194-5235b151d6d5.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/francozanardi/movielite"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/francozanardi/movielite"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/clips",
+              "concepts/video-writer",
+              "concepts/effects",
+              "concepts/audio-mixing"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/basic-editing",
+              "guides/text-overlays",
+              "guides/transitions",
+              "guides/masking",
+              "guides/custom-effects",
+              "guides/performance"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Examples",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "examples/overview",
+              "examples/effects-showcase",
+              "examples/text-animations",
+              "examples/audio-mixing",
+              "examples/advanced-compositing"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Core Classes",
             "pages": [
-              "api-reference/introduction"
+              "api/video-clip",
+              "api/alpha-video-clip",
+              "api/image-clip",
+              "api/text-clip",
+              "api/audio-clip",
+              "api/video-writer"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Effects",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/vfx/overview",
+              "api/vfx/fade",
+              "api/vfx/blur",
+              "api/vfx/color",
+              "api/vfx/zoom",
+              "api/vfx/glitch",
+              "api/vfx/rotation",
+              "api/vfx/vignette"
+            ]
+          },
+          {
+            "group": "Transitions",
+            "pages": [
+              "api/vtx/overview",
+              "api/vtx/crossfade",
+              "api/vtx/dissolve",
+              "api/vtx/blur-dissolve"
+            ]
+          },
+          {
+            "group": "Audio Effects",
+            "pages": [
+              "api/afx/overview",
+              "api/afx/fade"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/enums",
+              "api/logger"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Additional",
+            "pages": [
+              "resources/migration-from-moviepy",
+              "resources/performance-benchmarks",
+              "resources/changelog",
+              "resources/contributing"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

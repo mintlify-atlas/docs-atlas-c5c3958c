@@ -1,0 +1,297 @@
+---
+title: Zoom Effects
+description: Zoom-in, zoom-out, and cinematic Ken Burns effects for video clips
+---
+
+Zoom effects create dynamic motion by scaling clips over time. MovieLite provides three zoom effect classes: `ZoomIn`, `ZoomOut`, and `KenBurns`.
+
+## ZoomIn
+
+Gradually scales up the clip from a smaller size.
+
+### Constructor
+
+```python
+ZoomIn(
+    duration: float,
+    from_scale: float = 1.0,
+    to_scale: float = 1.2,
+    anchor: str = "center"
+)
+```
+
+<ParamField path="duration" type="float" required>
+  Duration of the zoom effect in seconds, from the start of the clip.
+</ParamField>
+
+<ParamField path="from_scale" type="float" default="1.0">
+  Starting scale factor. `1.0` = 100% size (original). Minimum value is 0.1.
+</ParamField>
+
+<ParamField path="to_scale" type="float" default="1.2">
+  Ending scale factor. `1.2` = 120% size (zoomed in 20%).
+</ParamField>
+
+<ParamField path="anchor" type="str | tuple" default="center">
+  Zoom anchor point. Determines which part of the frame stays fixed during zoom.
+  
+  String options:
+  - `"center"` (default)
+  - `"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"`
+  - `"top"`, `"bottom"`, `"left"`, `"right"`
+  
+  Or a tuple `(x, y)` for custom anchor in clip coordinates.
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Basic zoom-in from center
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ZoomIn(duration=5.0, from_scale=1.0, to_scale=1.2))
+
+# Zoom from smaller size
+clip.add_effect(vfx.ZoomIn(duration=3.0, from_scale=0.5, to_scale=1.0))
+
+# Zoom from top-left corner
+clip.add_effect(vfx.ZoomIn(duration=4.0, anchor="top-left"))
+
+# Custom anchor point
+clip.add_effect(vfx.ZoomIn(duration=5.0, anchor=(300, 200)))
+```
+
+### How It Works
+
+- Modifies both `scale` and `position` properties
+- Uses linear interpolation between `from_scale` and `to_scale`
+- Adjusts position to keep the anchor point fixed during zoom
+- After duration, maintains `to_scale` for remainder of clip
+
+Source: `src/movielite/vfx/zoom.py:5-71`
+
+---
+
+## ZoomOut
+
+Gradually scales down the clip.
+
+### Constructor
+
+```python
+ZoomOut(
+    duration: float,
+    from_scale: float = 1.2,
+    to_scale: float = 1.0,
+    anchor: str = "center"
+)
+```
+
+<ParamField path="duration" type="float" required>
+  Duration of the zoom effect in seconds, measured from the **end** of the clip.
+</ParamField>
+
+<ParamField path="from_scale" type="float" default="1.2">
+  Starting scale factor. `1.2` = 120% size (zoomed in).
+</ParamField>
+
+<ParamField path="to_scale" type="float" default="1.0">
+  Ending scale factor. `1.0` = 100% size (original). Minimum value is 0.1.
+</ParamField>
+
+<ParamField path="anchor" type="str | tuple" default="center">
+  Zoom anchor point. Same options as `ZoomIn`.
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Basic zoom-out at end of clip
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ZoomOut(duration=5.0, from_scale=1.2, to_scale=1.0))
+
+# Zoom out to smaller size
+clip.add_effect(vfx.ZoomOut(duration=3.0, from_scale=1.0, to_scale=0.7))
+
+# Zoom out from bottom-right
+clip.add_effect(vfx.ZoomOut(duration=4.0, anchor="bottom-right"))
+```
+
+<Note>
+`ZoomOut` applies the effect at the **end** of the clip, while `ZoomIn` applies at the **start**.
+</Note>
+
+Source: `src/movielite/vfx/zoom.py:73-144`
+
+---
+
+## KenBurns
+
+Cinematic slow zoom + pan effect named after the famous documentary filmmaker.
+
+### Constructor
+
+```python
+KenBurns(
+    duration: float = None,
+    start_scale: float = 1.0,
+    end_scale: float = 1.2,
+    start_position: tuple[int, int] = (0, 0),
+    end_position: tuple[int, int] = (0, 0)
+)
+```
+
+<ParamField path="duration" type="float" default="None">
+  Duration of the effect in seconds. If `None`, uses the entire clip duration.
+</ParamField>
+
+<ParamField path="start_scale" type="float" default="1.0">
+  Starting zoom level. `1.0` = 100% size.
+</ParamField>
+
+<ParamField path="end_scale" type="float" default="1.2">
+  Ending zoom level. `1.2` = 120% size.
+</ParamField>
+
+<ParamField path="start_position" type="tuple[int, int]" default="(0, 0)">
+  Starting position offset as `(x, y)` in pixels.
+</ParamField>
+
+<ParamField path="end_position" type="tuple[int, int]" default="(0, 0)">
+  Ending position offset as `(x, y)` in pixels.
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Basic Ken Burns: slow zoom in
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.KenBurns(
+    start_scale=1.0,
+    end_scale=1.3
+))
+
+# Zoom and pan
+clip.add_effect(vfx.KenBurns(
+    duration=10.0,
+    start_scale=1.0,
+    end_scale=1.3,
+    start_position=(0, 0),
+    end_position=(-100, -50)  # Pan left and up
+))
+
+# Zoom out with pan
+clip.add_effect(vfx.KenBurns(
+    start_scale=1.5,
+    end_scale=1.0,
+    start_position=(50, 50),
+    end_position=(0, 0)
+))
+```
+
+### How It Works
+
+- Combines zoom (scale) and pan (position) animations
+- Uses **cubic ease-in-out** for smooth, cinematic motion
+- If duration is `None`, effect spans entire clip
+- Position offsets are relative to the clip's base position
+
+### Easing Function
+
+The Ken Burns effect uses cubic ease-in-out interpolation for smoother, more natural motion:
+
+```python
+if progress < 0.5:
+    eased = 4 × progress³
+else:
+    eased = 1 - (-2 × progress + 2)³ / 2
+```
+
+This creates slow starts and stops with faster motion in the middle.
+
+Source: `src/movielite/vfx/zoom.py:146-220`
+
+---
+
+## Combining Zoom Effects
+
+### Zoom In Then Out
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ZoomIn(duration=3.0, from_scale=0.8, to_scale=1.2))
+clip.add_effect(vfx.ZoomOut(duration=3.0, from_scale=1.2, to_scale=0.8))
+```
+
+<Warning>
+Be careful when combining `ZoomIn` and `ZoomOut` - make sure the scales align at the transition point, or you'll get a sudden jump.
+</Warning>
+
+### Ken Burns with Fade
+
+```python
+clip = VideoClip("photo.jpg", duration=10.0)
+clip.add_effect(vfx.FadeIn(1.0))
+clip.add_effect(vfx.KenBurns(
+    duration=10.0,
+    start_scale=1.0,
+    end_scale=1.3,
+    end_position=(-80, -60)
+))
+clip.add_effect(vfx.FadeOut(1.5))
+```
+
+## Anchor Points Reference
+
+Visual representation of anchor point positions:
+
+```
+top-left          top          top-right
+    +-------------+-------------+
+    |                           |
+left|           center          |right
+    |                           |
+    +-------------+-------------+
+bottom-left      bottom      bottom-right
+```
+
+- **center**: Zoom from/to the center (most common)
+- **corners**: Zoom from/to a specific corner
+- **edges**: Zoom from/to the middle of an edge
+- **custom**: Specify exact `(x, y)` coordinates
+
+## Performance Considerations
+
+<Info>
+Zoom effects modify clip scale and position properties, not pixel data. This makes them very efficient - no image processing is required.
+</Info>
+
+<Note>
+The Ken Burns effect's cubic easing calculation is extremely lightweight and adds negligible overhead.
+</Note>
+
+## Technical Details
+
+### Scale Adjustments
+
+- Wraps the clip's `_scale` function with a time-based multiplier
+- Linear interpolation for `ZoomIn`/`ZoomOut`
+- Cubic ease-in-out for `KenBurns`
+
+### Position Adjustments
+
+- Wraps the clip's `_position` function
+- Calculates offsets to keep anchor point fixed
+- Formula: `offset = anchor × (1 - current_scale)`
+
+## See Also
+
+- [Rotation](/api/vfx/rotation) - Rotate clips for dynamic motion
+- [Fade Effects](/api/vfx/fade) - Combine with fades for smooth transitions
+- [GraphicClip.set_scale()](/api/core/graphicclip#set-scale) - Manually control scale
+- [GraphicClip.set_position()](/api/core/graphicclip#set-position) - Manually control position

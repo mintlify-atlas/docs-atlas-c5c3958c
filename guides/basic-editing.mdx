@@ -1,0 +1,413 @@
+---
+title: Basic Video Editing
+description: Learn fundamental video editing techniques with MovieLite
+---
+
+## Overview
+
+MovieLite provides a simple yet powerful API for basic video editing operations. This guide covers the fundamental techniques you'll use in almost every project: cutting clips, concatenating sequences, positioning elements, and adjusting visual properties.
+
+## Loading and Extracting Clips
+
+### Creating a VideoClip
+
+Start by loading a video file:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+print(f"Duration: {clip.duration}s")
+print(f"Size: {clip.size}")
+print(f"FPS: {clip.fps}")
+```
+
+### Extracting Segments with subclip()
+
+The `subclip()` method extracts a portion of a video between two time points:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+# Load video
+clip = VideoClip("input.mp4")
+
+# Extract seconds 5-15 (10 second segment)
+segment = clip.subclip(5, 15)
+
+# Write the extracted segment
+writer = VideoWriter("output_subclip.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(segment)
+writer.write()
+
+clip.close()
+```
+
+<Info>
+  The `subclip()` method returns a new clip object referencing the specified time range. The original file is not modified.
+</Info>
+
+## Concatenating Videos
+
+### Sequential Concatenation
+
+Combine multiple clips by setting their start times sequentially:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip1 = VideoClip("intro.mp4", start=0)
+clip2 = VideoClip("main.mp4", start=clip1.duration)
+clip3 = VideoClip("outro.mp4", start=clip1.duration + clip2.duration)
+
+total_duration = clip1.duration + clip2.duration + clip3.duration
+
+writer = VideoWriter(
+    "output_concat.mp4",
+    fps=clip1.fps,
+    size=clip1.size,
+    duration=total_duration
+)
+writer.add_clips([clip1, clip2, clip3])
+writer.write()
+
+clip1.close()
+clip2.close()
+clip3.close()
+```
+
+<Steps>
+  <Step title="Load clips">
+    Create VideoClip instances for each segment you want to concatenate.
+  </Step>
+  <Step title="Set start times">
+    Position clips sequentially using the `start` parameter or by calculating offsets from previous clips' durations.
+  </Step>
+  <Step title="Write output">
+    Add all clips to a VideoWriter and call `write()` to render the final video.
+  </Step>
+</Steps>
+
+### Using clip.end for Convenience
+
+You can use `clip.end` property for cleaner code:
+
+```python
+clip1 = VideoClip("intro.mp4", start=0)
+clip2 = VideoClip("main.mp4", start=clip1.end)  # Same as clip1.start + clip1.duration
+clip3 = VideoClip("outro.mp4", start=clip2.end)
+```
+
+## Positioning and Sizing
+
+### Resizing Videos
+
+Change the dimensions of a clip using `set_size()`:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+
+# Resize to 720p (1280x720)
+clip.set_size(width=1280, height=720)
+
+writer = VideoWriter("output_720p.mp4", fps=clip.fps, size=(1280, 720))
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+<Note>
+  When you specify both width and height, the video will be stretched or squashed to fit. To maintain aspect ratio, specify only one dimension.
+</Note>
+
+### Maintaining Aspect Ratio
+
+```python
+# Set width only - height adjusts automatically
+clip.set_size(width=1280)
+
+# Set height only - width adjusts automatically
+clip.set_size(height=720)
+```
+
+### Positioning Clips
+
+Position clips at specific coordinates using `set_position()`:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+background = VideoClip("background.mp4", start=0)
+small_clip = VideoClip("overlay.mp4", start=0)
+
+# Resize the overlay to be smaller
+small_clip.set_size(width=320, height=180)
+
+# Position in top-right corner (with 20px padding)
+small_clip.set_position((background.size[0] - 340, 20))
+
+writer = VideoWriter("output_positioned.mp4", fps=background.fps, size=background.size)
+writer.add_clips([background, small_clip])
+writer.write()
+
+background.close()
+small_clip.close()
+```
+
+### Dynamic Positioning
+
+Position can be a function of time for animated movement:
+
+```python
+# Slide from left to center over 2 seconds
+def slide_position(t):
+    if t < 2.0:
+        x = int(-320 + (video.size[0] // 2 + 320) * (t / 2.0))
+    else:
+        x = video.size[0] // 2
+    
+    y = video.size[1] // 2
+    return (x, y)
+
+clip.set_position(slide_position)
+```
+
+## Opacity Control
+
+### Static Opacity
+
+Create semi-transparent overlays:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+background = VideoClip("background.mp4", start=0)
+overlay = VideoClip("overlay.mp4", start=0)
+
+# Make overlay 50% transparent
+overlay.set_opacity(0.5)
+overlay.set_size(width=background.size[0], height=background.size[1])
+
+writer = VideoWriter("output_overlay.mp4", fps=background.fps, size=background.size)
+writer.add_clips([background, overlay])
+writer.write()
+
+background.close()
+overlay.close()
+```
+
+<CodeGroup>
+```python Opaque (Default)
+clip.set_opacity(1.0)  # Fully visible
+```
+
+```python Semi-transparent
+clip.set_opacity(0.5)  # 50% transparent
+```
+
+```python Nearly invisible
+clip.set_opacity(0.1)  # 90% transparent
+```
+</CodeGroup>
+
+### Dynamic Opacity
+
+Opacity can also be time-dependent:
+
+```python
+# Fade from 0 to 1 over 2 seconds
+clip.set_opacity(lambda t: min(1.0, t / 2.0))
+
+# Pulsing effect
+import math
+clip.set_opacity(lambda t: 0.5 + 0.5 * math.sin(t * 2 * math.pi))
+```
+
+## Speed Control
+
+### Changing Playback Speed
+
+Adjust how fast or slow a clip plays:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+# Create slow motion (half speed)
+video = VideoClip("action.mp4", start=0, duration=5)
+video.set_speed(0.5)  # 5 seconds of source now plays in 10 seconds
+
+writer = VideoWriter("slow_motion.mp4", fps=video.fps)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+<CodeGroup>
+```python Slow Motion (0.5x)
+video.set_speed(0.5)  # Half speed
+```
+
+```python Normal Speed (1.0x)
+video.set_speed(1.0)  # Default
+```
+
+```python Fast Motion (2.0x)
+video.set_speed(2.0)  # Double speed
+```
+
+```python Time Lapse (4.0x)
+video.set_speed(4.0)  # Four times faster
+```
+</CodeGroup>
+
+### Mixed Speed Sequences
+
+Combine clips with different speeds:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+# Normal speed intro
+intro = VideoClip("intro.mp4", start=0, duration=3)
+intro.set_speed(1.0)
+
+# Fast action sequence
+action = VideoClip("action.mp4", start=intro.end, duration=10)
+action.set_speed(2.0)  # Will play in 5 seconds
+
+# Slow motion highlight
+highlight = VideoClip("highlight.mp4", start=action.end, duration=5)
+highlight.set_speed(0.5)  # Will play in 10 seconds
+
+writer = VideoWriter("final.mp4", fps=30)
+writer.add_clips([intro, action, highlight])
+writer.write()
+
+for clip in [intro, action, highlight]:
+    clip.close()
+```
+
+<Warning>
+  Speed changes affect both video frames and audio. The audio will be pitched up (faster) or down (slower) accordingly.
+</Warning>
+
+## Looping Videos
+
+### Basic Looping
+
+Repeat a short clip to fill a longer duration:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("short_clip.mp4", duration=10)
+clip.loop(True)  # Enable looping
+
+# The clip will loop to fill the 10-second duration
+writer = VideoWriter("output_looped.mp4", fps=clip.fps, size=clip.size, duration=10)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+## Scaling Clips
+
+### Static Scaling
+
+Scale clips up or down:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+
+# Scale to 150% (zoom in)
+clip.set_scale(1.5)
+
+# Scale to 75% (zoom out)
+clip.set_scale(0.75)
+
+writer = VideoWriter("output_scaled.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Animated Scaling
+
+Create zoom effects with time-based scaling:
+
+```python
+import numpy as np
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+
+# Zoom from 1.0x to 1.5x over the clip's duration
+clip.set_scale(lambda t: 1.0 + 0.5 * (t / clip.duration))
+
+# Pulsing scale effect
+clip.set_scale(lambda t: 1.0 + 0.2 * np.sin(t * 2 * np.pi))
+
+writer = VideoWriter("output_zoom.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+## Complete Example: Picture-in-Picture
+
+Here's a complete example combining multiple techniques:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+# Load main video
+main_video = VideoClip("main.mp4", start=0)
+
+# Load and prepare picture-in-picture
+pip = VideoClip("webcam.mp4", start=0, duration=main_video.duration)
+pip.set_size(width=320, height=180)
+pip.set_position((main_video.size[0] - 340, main_video.size[1] - 200))
+pip.set_opacity(0.9)  # Slightly transparent
+
+# Create output
+writer = VideoWriter(
+    "output_pip.mp4",
+    fps=main_video.fps,
+    size=main_video.size,
+    duration=main_video.duration
+)
+writer.add_clips([main_video, pip])
+writer.write()
+
+main_video.close()
+pip.close()
+```
+
+## Best Practices
+
+<Card title="Memory Management" icon="memory">
+  Always call `close()` on clips when you're done with them to free up resources, especially when working with multiple large video files.
+</Card>
+
+<Card title="Size Consistency" icon="expand">
+  When concatenating clips, ensure they all have the same dimensions for seamless transitions. Use `set_size()` to standardize dimensions if needed.
+</Card>
+
+<Card title="FPS Matching" icon="clock">
+  Use a consistent frame rate across all clips. The VideoWriter's fps should match your clips for smooth playback.
+</Card>
+
+## Next Steps
+
+- Learn about [Text Overlays](/guides/text-overlays) to add captions and titles
+- Explore [Transitions](/guides/transitions) for smooth scene changes
+- Discover [Visual Effects](/guides/custom-effects) to enhance your videos

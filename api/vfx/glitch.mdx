@@ -1,0 +1,298 @@
+---
+title: Glitch Effects
+description: Digital distortion effects including glitch, chromatic aberration, and pixelate
+---
+
+Glitch effects create digital distortion and artifacts for stylistic purposes. MovieLite provides three glitch effect classes: `Glitch`, `ChromaticAberration`, and `Pixelate`.
+
+## Glitch
+
+Create digital distortion artifacts simulating VHS glitches, digital corruption, and RGB channel shifts.
+
+### Constructor
+
+```python
+Glitch(
+    intensity: float = 0.5,
+    rgb_shift: bool = True,
+    horizontal_lines: bool = True,
+    scan_lines: bool = False
+)
+```
+
+<ParamField path="intensity" type="float" default="0.5">
+  Intensity of the glitch effect, from 0.0 (no effect) to 1.0 (maximum glitch).
+  Automatically clamped to [0.0, 1.0].
+</ParamField>
+
+<ParamField path="rgb_shift" type="bool" default="True">
+  Enable RGB channel shifting. Separates red and blue channels horizontally.
+</ParamField>
+
+<ParamField path="horizontal_lines" type="bool" default="True">
+  Enable horizontal displacement lines that create scanline-like glitches.
+</ParamField>
+
+<ParamField path="scan_lines" type="bool" default="False">
+  Enable scan line artifacts (alternating dark lines).
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Full glitch effect
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Glitch(
+    intensity=0.7,
+    rgb_shift=True,
+    horizontal_lines=True,
+    scan_lines=True
+))
+
+# Subtle RGB shift only
+clip.add_effect(vfx.Glitch(
+    intensity=0.3,
+    rgb_shift=True,
+    horizontal_lines=False,
+    scan_lines=False
+))
+
+# VHS-style scan lines
+clip.add_effect(vfx.Glitch(
+    intensity=0.5,
+    rgb_shift=False,
+    horizontal_lines=True,
+    scan_lines=True
+))
+```
+
+### How It Works
+
+#### RGB Channel Shift
+- Shifts red channel right by `2% × intensity` of frame width
+- Shifts blue channel left by the same amount
+- Creates chromatic separation effect
+
+#### Horizontal Displacement Lines
+- Generates random horizontal bands
+- Number of bands: `5 × intensity`
+- Each band shifts horizontally by random amount
+- Shift range: `±10% × intensity` of frame width
+
+#### Scan Lines
+- Creates alternating dark lines (every other line)
+- Darkness: `15% × intensity`
+- Simulates CRT/VHS scan line artifacts
+
+<Info>
+The glitch effect uses time-based seeding for pseudo-random patterns. This ensures consistency - the same frame at the same time will always have the same glitch pattern.
+</Info>
+
+Source: `src/movielite/vfx/glitch.py:6-82`
+
+---
+
+## ChromaticAberration
+
+Chromatic aberration effect that separates RGB channels, simulating lens distortion.
+
+### Constructor
+
+```python
+ChromaticAberration(intensity: float = 5.0)
+```
+
+<ParamField path="intensity" type="float" default="5.0">
+  Intensity of the aberration in pixels. How far to shift the RGB channels.
+  Minimum value is 0 (automatically enforced).
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Subtle aberration
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ChromaticAberration(intensity=3.0))
+
+# Strong aberration
+clip.add_effect(vfx.ChromaticAberration(intensity=10.0))
+```
+
+### How It Works
+
+- Shifts red channel right by `intensity` pixels
+- Shifts blue channel left by `intensity` pixels
+- Green channel remains unchanged
+- Creates color fringing effect similar to lens distortion
+
+<Note>
+Unlike the `Glitch` effect's RGB shift (which is percentage-based), `ChromaticAberration` uses absolute pixel values. This makes it more predictable and consistent across different resolutions.
+</Note>
+
+Source: `src/movielite/vfx/glitch.py:84-120`
+
+---
+
+## Pixelate
+
+Pixelate effect that reduces resolution to create a blocky, retro appearance.
+
+### Constructor
+
+```python
+Pixelate(block_size: int = 10)
+```
+
+<ParamField path="block_size" type="int" default="10">
+  Size of pixelation blocks in pixels. Larger values = more pixelated.
+  Minimum value is 1 (automatically enforced).
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Light pixelation
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Pixelate(block_size=8))
+
+# Heavy pixelation
+clip.add_effect(vfx.Pixelate(block_size=20))
+
+# Extreme pixelation (8-bit style)
+clip.add_effect(vfx.Pixelate(block_size=40))
+```
+
+### How It Works
+
+1. **Downscale**: Resize frame to `(width/block_size, height/block_size)` using linear interpolation
+2. **Upscale**: Resize back to original dimensions using nearest-neighbor interpolation
+3. The nearest-neighbor upscaling creates the blocky effect
+
+<Info>
+The pixelate effect uses OpenCV's fast resize operations. Even with large block sizes, performance remains excellent.
+</Info>
+
+Source: `src/movielite/vfx/glitch.py:122-156`
+
+---
+
+## Combining Glitch Effects
+
+### Layered Glitch
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ChromaticAberration(intensity=5.0))
+clip.add_effect(vfx.Glitch(
+    intensity=0.4,
+    rgb_shift=False,  # Already have aberration
+    horizontal_lines=True,
+    scan_lines=True
+))
+```
+
+### Retro Digital Look
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Pixelate(block_size=12))
+clip.add_effect(vfx.Saturation(1.4))  # Boost colors
+clip.add_effect(vfx.Contrast(1.2))
+```
+
+### VHS Tape Distortion
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Glitch(
+    intensity=0.6,
+    rgb_shift=True,
+    horizontal_lines=True,
+    scan_lines=True
+))
+clip.add_effect(vfx.Saturation(0.8))  # Slightly desaturate
+clip.add_effect(vfx.Contrast(0.9))    # Lower contrast
+```
+
+## Creative Use Cases
+
+### Cyberpunk Aesthetic
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ChromaticAberration(intensity=8.0))
+clip.add_effect(vfx.Saturation(1.5))
+clip.add_effect(vfx.Contrast(1.3))
+```
+
+### Glitch Transition
+
+```python
+clip = VideoClip("input.mp4")
+# Apply stronger glitch at specific moments
+clip.add_effect(vfx.Glitch(intensity=0.8))
+clip.add_effect(vfx.FadeOut(0.5))
+```
+
+### Censorship/Privacy Effect
+
+```python
+# Pixelate faces or sensitive content
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Pixelate(block_size=25))
+```
+
+## Performance Considerations
+
+<Note>
+All glitch effects use NumPy array operations which are highly optimized. However, they do process every frame:
+
+- **Pixelate**: Very fast (just resize operations)
+- **ChromaticAberration**: Fast (simple channel shifts)
+- **Glitch**: Moderate (multiple operations per frame)
+</Note>
+
+### Intensity Impact
+
+| Effect | Low Intensity | High Intensity | Performance Impact |
+|--------|---------------|----------------|--------------------|
+| Glitch | 0.0 - 0.3 | 0.7 - 1.0 | Low to Moderate |
+| ChromaticAberration | 1 - 5px | 15 - 30px | Very Low |
+| Pixelate | 5 - 10 | 30+ | Very Low |
+
+## Technical Details
+
+### Glitch Random Seed
+
+The `Glitch` effect uses time-based seeding:
+
+```python
+seed = int(t * 1000) % 1000
+np.random.seed(seed)
+```
+
+This ensures:
+- Consistent glitches at the same timestamp
+- Variation between frames (different t values)
+- Reproducible results
+
+### Color Channel Order
+
+OpenCV uses BGR color order, so:
+- Channel 0 = Blue
+- Channel 1 = Green
+- Channel 2 = Red
+
+Effects shift channels 0 and 2, leaving channel 1 unchanged.
+
+## See Also
+
+- [Blur Effects](/api/vfx/blur) - Combine with blur for motion effects
+- [Color Effects](/api/vfx/color) - Enhance glitch aesthetic with color grading
+- [Rotation](/api/vfx/rotation) - Add rotation for dynamic glitches

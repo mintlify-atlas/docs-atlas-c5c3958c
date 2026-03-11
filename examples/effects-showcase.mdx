@@ -1,0 +1,432 @@
+---
+title: 'Effects Showcase'
+description: 'Complete guide to all built-in visual and audio effects in MovieLite'
+---
+
+MovieLite includes a comprehensive library of visual effects (vfx) and audio effects (afx) that you can apply to your clips. This guide demonstrates every effect with practical examples.
+
+<Info>
+  View the complete source code: [effects_showcase.py](https://github.com/francozanardi/movielite/blob/main/examples/effects_showcase.py)
+</Info>
+
+## Fade Effects
+
+Fade effects create smooth transitions at the beginning or end of clips.
+
+### Fade In and Fade Out
+
+```python
+from movielite import VideoClip, VideoWriter, vfx
+
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.FadeIn(duration=2.0))
+clip.add_effect(vfx.FadeOut(duration=1.5))
+
+writer = VideoWriter("output_fade.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+<Note>
+  - `FadeIn(duration)` - Fades from black to full opacity
+  - `FadeOut(duration)` - Fades from full opacity to black
+  - Duration is in seconds
+</Note>
+
+## Blur Effects
+
+Blur effects can create focus effects, transitions, or dreamy aesthetics.
+
+### Static Blur
+
+Apply constant blur throughout the clip:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Blur(intensity=7.0))
+
+writer = VideoWriter("output_blur.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Blur In
+
+Start blurred, gradually become clear:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.BlurIn(duration=3.0, max_intensity=15.0))
+
+writer = VideoWriter("output_blur_in.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Blur Out
+
+Start clear, gradually become blurred:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.BlurOut(duration=3.0, max_intensity=15.0))
+
+writer = VideoWriter("output_blur_out.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+<CodeGroup>
+```python Blur
+clip.add_effect(vfx.Blur(intensity=7.0))
+```
+
+```python Blur In
+clip.add_effect(vfx.BlurIn(duration=3.0, max_intensity=15.0))
+```
+
+```python Blur Out
+clip.add_effect(vfx.BlurOut(duration=3.0, max_intensity=15.0))
+```
+</CodeGroup>
+
+## Color Effects
+
+Adjust colors, saturation, brightness, and contrast to achieve your desired look.
+
+### Saturation
+
+Increase or decrease color saturation:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Saturation(factor=1.5))  # 1.5x saturation
+
+writer = VideoWriter("output_saturated.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Brightness
+
+Make the video brighter or darker:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Brightness(factor=1.3))  # 30% brighter
+
+writer = VideoWriter("output_bright.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Contrast
+
+Increase or decrease contrast:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Contrast(factor=1.4))  # Higher contrast
+
+writer = VideoWriter("output_contrast.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Black and White
+
+Convert to grayscale:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.BlackAndWhite())
+
+writer = VideoWriter("output_bw.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Sepia Tone
+
+Apply vintage sepia effect:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Sepia(intensity=1.0))
+
+writer = VideoWriter("output_sepia.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+<CodeGroup>
+```python Saturation
+vfx.Saturation(factor=1.5)
+```
+
+```python Brightness
+vfx.Brightness(factor=1.3)
+```
+
+```python Contrast
+vfx.Contrast(factor=1.4)
+```
+
+```python Black & White
+vfx.BlackAndWhite()
+```
+
+```python Sepia
+vfx.Sepia(intensity=1.0)
+```
+</CodeGroup>
+
+## Zoom Effects
+
+Create dynamic camera movements with zoom effects.
+
+### Zoom In
+
+Gradually zoom into the frame:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ZoomIn(duration=5.0, from_scale=0.5, to_scale=1.0))
+
+writer = VideoWriter("output_zoom_in.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Zoom Out
+
+Gradually zoom out of the frame:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ZoomOut(duration=5.0, from_scale=1.0, to_scale=0.7))
+
+writer = VideoWriter("output_zoom_out.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Ken Burns Effect
+
+Combine zoom and pan for the classic Ken Burns effect:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.KenBurns(
+    start_scale=1.0,
+    end_scale=1.3,
+    start_position=(0, 0),
+    end_position=(-100, -50)
+))
+
+writer = VideoWriter("output_ken_burns.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+<Note>
+The Ken Burns effect is commonly used in documentaries to add motion to static photos.
+</Note>
+
+## Glitch Effects
+
+Create digital distortion and glitch aesthetics.
+
+### Digital Glitch
+
+Simulate digital corruption with RGB shift, horizontal lines, and scan lines:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Glitch(
+    intensity=0.7,
+    rgb_shift=True,
+    horizontal_lines=True,
+    scan_lines=True
+))
+
+writer = VideoWriter("output_glitch.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Chromatic Aberration
+
+Create RGB color separation effect:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ChromaticAberration(intensity=8.0))
+
+writer = VideoWriter("output_chromatic.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+### Pixelate
+
+Create blocky, pixelated look:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Pixelate(block_size=15))
+
+writer = VideoWriter("output_pixelate.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+## Vignette Effect
+
+Darken the edges of the frame to draw focus to the center:
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Vignette(intensity=0.6, radius=0.7))
+
+writer = VideoWriter("output_vignette.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+- `intensity` - How dark the edges become (0.0 to 1.0)
+- `radius` - How far the vignette extends (0.0 to 1.0)
+
+## Combining Multiple Effects
+
+Effects are applied in the order they are added:
+
+```python
+clip = VideoClip("input.mp4")
+
+# Apply multiple effects in sequence
+clip.add_effect(vfx.FadeIn(1.0))
+clip.add_effect(vfx.Saturation(1.3))
+clip.add_effect(vfx.Contrast(1.2))
+clip.add_effect(vfx.Vignette(intensity=0.4, radius=0.8))
+clip.add_effect(vfx.FadeOut(1.5))
+
+writer = VideoWriter("output_combined.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+```
+
+<Info>
+Effects are rendered in the order they're added. The order can significantly affect the final result.
+</Info>
+
+## Audio Effects
+
+Apply effects to audio tracks using the `afx` module.
+
+### Audio Fade Effects
+
+```python
+from movielite import VideoClip, AudioClip, VideoWriter, afx
+
+video = VideoClip("input.mp4")
+
+# Apply fade to video's audio
+video.audio.add_effect(afx.FadeIn(2.0))
+video.audio.add_effect(afx.FadeOut(2.0))
+
+# Add background music with fade
+music = AudioClip("background.mp3", start=0, volume=0.3)
+music.add_effect(afx.FadeIn(3.0))
+music.add_effect(afx.FadeOut(3.0))
+
+writer = VideoWriter("output_audio_effects.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.add_clip(music)
+writer.write()
+```
+
+<Note>
+  Audio effects work the same way as visual effects - use `add_effect()` to chain them.
+</Note>
+
+## Effect Parameters Reference
+
+### Fade Effects
+
+| Effect | Parameters | Description |
+|--------|-----------|-------------|
+| `FadeIn(duration)` | `duration`: float (seconds) | Fade from black to full opacity |
+| `FadeOut(duration)` | `duration`: float (seconds) | Fade from full opacity to black |
+
+### Blur Effects
+
+| Effect | Parameters | Description |
+|--------|-----------|-------------|
+| `Blur(intensity)` | `intensity`: float (0-100) | Static blur effect |
+| `BlurIn(duration, max_intensity)` | `duration`: float<br/>`max_intensity`: float | Start blurred, become clear |
+| `BlurOut(duration, max_intensity)` | `duration`: float<br/>`max_intensity`: float | Start clear, become blurred |
+
+### Color Effects
+
+| Effect | Parameters | Description |
+|--------|-----------|-------------|
+| `Saturation(factor)` | `factor`: float (0.0 = grayscale, 1.0 = normal, >1.0 = vibrant) | Adjust color saturation |
+| `Brightness(factor)` | `factor`: float (1.0 = normal) | Adjust brightness |
+| `Contrast(factor)` | `factor`: float (1.0 = normal) | Adjust contrast |
+| `BlackAndWhite()` | None | Convert to grayscale |
+| `Sepia(intensity)` | `intensity`: float (0.0 to 1.0) | Apply sepia tone |
+
+### Zoom Effects
+
+| Effect | Parameters | Description |
+|--------|-----------|-------------|
+| `ZoomIn(duration, from_scale, to_scale)` | `duration`: float<br/>`from_scale`: float<br/>`to_scale`: float | Zoom into frame |
+| `ZoomOut(duration, from_scale, to_scale)` | `duration`: float<br/>`from_scale`: float<br/>`to_scale`: float | Zoom out of frame |
+| `KenBurns(start_scale, end_scale, start_position, end_position)` | See API docs | Zoom + pan effect |
+
+### Glitch Effects
+
+| Effect | Parameters | Description |
+|--------|-----------|-------------|
+| `Glitch(intensity, rgb_shift, horizontal_lines, scan_lines)` | `intensity`: float (0.0-1.0)<br/>Booleans for effect types | Digital glitch effect |
+| `ChromaticAberration(intensity)` | `intensity`: float | RGB color separation |
+| `Pixelate(block_size)` | `block_size`: int | Pixelation effect |
+
+### Other Effects
+
+| Effect | Parameters | Description |
+|--------|-----------|-------------|
+| `Vignette(intensity, radius)` | `intensity`: float (0.0-1.0)<br/>`radius`: float (0.0-1.0) | Darken frame edges |
+
+## Performance Tips
+
+<Info>
+For better performance when applying multiple effects:
+- Effects are processed in sequence during rendering
+- Computationally intensive effects (blur, glitch) will slow rendering
+- Consider reducing video resolution for preview renders
+- Use `VideoQuality` enum to balance quality and speed
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Text Animations" icon="text" href="/examples/text-animations">
+    Learn how to add animated text overlays
+  </Card>
+  
+  <Card title="Audio Mixing" icon="volume-high" href="/examples/audio-mixing">
+    Master audio track control and mixing
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/vfx/overview">
+    Detailed API documentation for all effects
+  </Card>
+  
+  <Card title="Custom Effects" icon="wand-sparkles" href="/guides/custom-effects">
+    Create your own custom effects
+  </Card>
+</CardGroup>

@@ -1,0 +1,579 @@
+---
+title: "Audio Mixing"
+description: "Working with audio tracks and mixing multiple audio sources"
+---
+
+## Overview
+
+MovieLite provides sophisticated audio handling capabilities:
+
+- Load audio from files or extract from video
+- Mix multiple audio tracks automatically
+- Apply effects and volume curves
+- Control timing, speed, and looping
+- Memory-efficient chunk-based processing
+
+All audio is processed as float32 samples in the range [-1.0, 1.0].
+
+## AudioClip Basics
+
+### Loading Audio
+
+```python
+from movielite import AudioClip
+
+# Load full audio file
+audio = AudioClip(
+    path="music.mp3",
+    start=0,          # Start time in composition
+    duration=None,    # None = use full file
+    volume=1.0,       # Volume multiplier
+    offset=0          # Start offset within file
+)
+```
+
+### Audio from Video
+
+Every `VideoClip` has an associated `AudioClip`:
+
+```python
+from movielite import VideoClip
+
+video = VideoClip("video.mp4", start=0, duration=10)
+
+# Access audio track
+audio = video.audio
+audio.set_volume(0.8)
+
+from movielite import afx
+audio.add_effect(afx.FadeIn(2.0))
+```
+
+<Note>
+When you add a `VideoClip` to `VideoWriter`, its audio is automatically included in the mix. You don't need to manually add `video.audio`.
+</Note>
+
+Source: `src/movielite/audio/audio_clip.py:1`
+
+## Audio Properties
+
+### Timing Properties
+
+AudioClip inherits from `MediaClip` and supports all timing operations:
+
+```python
+audio = AudioClip("music.mp3", start=0, duration=30)
+
+# Timing adjustments
+audio.set_start(5.0)      # Start at 5 seconds in composition
+audio.set_duration(20.0)  # Use 20 seconds of audio
+audio.set_end(25.0)       # End at 25 seconds (adjusts duration)
+audio.set_offset(10.0)    # Start reading from 10s in the file
+audio.set_speed(1.5)      # Play at 1.5x speed
+
+# Read-only properties
+print(audio.start)        # 5.0
+print(audio.duration)     # 20.0 (accounts for speed)
+print(audio.end)          # 25.0
+print(audio.speed)        # 1.5
+```
+
+### Audio Metadata
+
+```python
+audio = AudioClip("music.mp3", start=0)
+
+print(audio.sample_rate)  # e.g., 44100
+print(audio.channels)     # 1 (mono) or 2 (stereo)
+print(audio.has_audio)    # True/False (False for silent clips)
+print(audio.volume)       # Current volume multiplier
+print(audio.offset)       # Current offset in seconds
+print(audio.path)         # File path
+```
+
+Source: `src/movielite/audio/audio_clip.py:360`
+
+## Volume Control
+
+### Static Volume
+
+```python
+audio = AudioClip("music.mp3", start=0, duration=30)
+audio.set_volume(0.5)  # 50% volume
+```
+
+### Volume Curves
+
+Apply time-based volume changes:
+
+```python
+# Gradual volume increase
+audio.set_volume_curve(lambda t: min(1.0, t / 5.0))
+# Volume increases from 0 to 1.0 over 5 seconds
+
+# Pulsing volume
+import math
+audio.set_volume_curve(lambda t: 0.5 + 0.3 * math.sin(t * 2 * math.pi))
+
+# Static volume via curve
+audio.set_volume_curve(0.7)  # Equivalent to set_volume(0.7)
+```
+
+Source: `src/movielite/audio/audio_clip.py:264`
+
+## Speed and Timing
+
+### Playback Speed
+
+Changing speed affects both timing and audio pitch:
+
+```python
+audio = AudioClip("speech.mp3", start=0, duration=10)
+audio.set_speed(1.5)
+
+# Source: 10 seconds of audio
+# Timeline: 10 / 1.5 = 6.67 seconds
+# Pitch: Higher (chipmunk effect)
+```
+
+<Info>
+Speed adjustment uses FFmpeg's `atempo` filter, which can chain multiple filters for extreme speed changes. Speed range is effectively unlimited (0.5, 2.0, 4.0, etc.).
+</Info>
+
+Source: `src/movielite/audio/audio_clip.py:115`
+
+### Offset
+
+Start reading from a specific point in the audio file:
+
+```python
+audio = AudioClip(
+    path="music.mp3",
+    start=0,
+    duration=30,
+    offset=45  # Skip first 45 seconds of the file
+)
+
+# Or adjust after creation
+audio.set_offset(60.0)  # Skip first 60 seconds
+```
+
+### Looping
+
+Repeat audio when it reaches the end:
+
+```python
+audio = AudioClip("short_loop.wav", start=0, duration=60)
+audio.loop(True)
+
+# If the file is 5 seconds long, it will loop 12 times to fill 60 seconds
+```
+
+Source: `src/movielite/audio/audio_clip.py:390`
+
+## Accessing Audio Samples
+
+### Get All Samples
+
+Load entire audio segment into memory:
+
+```python
+audio = AudioClip("music.mp3", start=0, duration=10)
+
+# Get all samples
+samples = audio.get_samples()  # Shape: (n_samples, n_channels)
+print(samples.shape)  # e.g., (441000, 2) for 10s stereo at 44.1kHz
+print(samples.dtype)  # float32
+print(samples.min(), samples.max())  # Values in range [-1.0, 1.0]
+```
+
+<Warning>
+Loading all samples at once can use significant memory for long audio files. For memory-efficient processing, use `iter_chunks()` instead.
+</Warning>
+
+### Chunk-Based Processing
+
+Process audio in manageable chunks:
+
+```python
+audio = AudioClip("long_audio.mp3", start=0, duration=300)  # 5 minutes
+
+for samples, chunk_start_time in audio.iter_chunks(chunk_duration=10.0):
+    # samples: np.ndarray of shape (n_samples, n_channels)
+    # chunk_start_time: absolute time in the source file
+    
+    print(f"Processing chunk starting at {chunk_start_time:.2f}s")
+    print(f"Chunk shape: {samples.shape}")
+    
+    # Process samples...
+    # All effects and volume are already applied
+```
+
+Source: `src/movielite/audio/audio_clip.py:177`
+
+<Tip>
+Chunk duration of 5-10 seconds is optimal for memory usage vs. overhead. VideoWriter uses 10-second chunks internally.
+</Tip>
+
+## Audio Effects
+
+### Built-in Effects
+
+```python
+from movielite import afx
+
+audio = AudioClip("music.mp3", start=0, duration=60)
+
+# Fade in
+audio.add_effect(afx.FadeIn(duration=3.0))
+
+# Fade out
+audio.add_effect(afx.FadeOut(duration=5.0))
+
+# Chain effects
+audio.add_effect(afx.FadeIn(2.0)).add_effect(afx.FadeOut(3.0))
+```
+
+Source: `src/movielite/afx/fade.py:1`
+
+### Custom Transforms
+
+Create custom audio processing:
+
+```python
+import numpy as np
+
+def normalize_volume(samples: np.ndarray, t: float, sr: int) -> np.ndarray:
+    """Normalize audio to peak at 0.9."""
+    peak = np.abs(samples).max()
+    if peak > 0:
+        return samples * (0.9 / peak)
+    return samples
+
+audio.add_transform(normalize_volume)
+```
+
+### Transform API
+
+Custom transforms receive:
+- `samples`: np.ndarray of shape `(n_samples, n_channels)` with float32 values in [-1, 1]
+- `t`: Absolute time in seconds (start of this chunk in the original file)
+- `sr`: Sample rate in Hz
+
+They should return transformed samples with the same shape.
+
+```python
+def bass_boost(samples: np.ndarray, t: float, sr: int) -> np.ndarray:
+    """Simple bass boost using low-pass filter."""
+    from scipy import signal
+    
+    # Design low-pass filter
+    cutoff = 200  # Hz
+    nyquist = sr / 2
+    normalized_cutoff = cutoff / nyquist
+    b, a = signal.butter(2, normalized_cutoff, btype='low')
+    
+    # Apply to each channel
+    result = samples.copy()
+    for ch in range(samples.shape[1]):
+        filtered = signal.filtfilt(b, a, samples[:, ch])
+        result[:, ch] = samples[:, ch] + filtered * 0.3
+    
+    return np.clip(result, -1.0, 1.0)
+
+audio.add_transform(bass_boost)
+```
+
+Source: `src/movielite/audio/audio_clip.py:237`
+
+## Automatic Audio Mixing
+
+When you add multiple clips with audio to `VideoWriter`, they're automatically mixed:
+
+```python
+from movielite import VideoWriter, VideoClip, AudioClip
+
+video1 = VideoClip("clip1.mp4", start=0, duration=10)
+video2 = VideoClip("clip2.mp4", start=8, duration=10)
+music = AudioClip("background.mp3", start=0, duration=18)
+voiceover = AudioClip("narration.mp3", start=5, duration=10)
+
+writer = VideoWriter("output.mp4", fps=30, size=(1920, 1080))
+writer.add_clips([video1, video2, music, voiceover])
+writer.write()
+
+# All audio sources are mixed:
+# - video1.audio (0-10s)
+# - video2.audio (8-18s)
+# - music (0-18s)
+# - voiceover (5-15s)
+```
+
+### Mixing Process
+
+VideoWriter performs these steps:
+
+1. **Determine target format** - Uses the highest sample rate and channel count among all clips
+2. **Resample** - Converts all clips to the target sample rate
+3. **Channel conversion** - Converts mono to stereo or stereo to mono as needed
+4. **Sum samples** - Overlapping audio is summed at each timeline position
+5. **Normalize** - If the peak exceeds 1.0, all samples are normalized to prevent clipping
+6. **Encode** - Converts to AAC and muxes with video
+
+```python
+# Pseudo-code of mixing process
+target_sample_rate = max(clip.sample_rate for clip in audio_clips)
+target_channels = max(clip.channels for clip in audio_clips)
+
+mixed_audio = np.zeros((total_samples, target_channels), dtype=np.float32)
+
+for audio_clip in audio_clips:
+    for samples, chunk_start_time in audio_clip.iter_chunks():
+        # Resample if needed
+        if audio_clip.sample_rate != target_sample_rate:
+            samples = resample(samples, audio_clip.sample_rate, target_sample_rate)
+        
+        # Convert channels if needed
+        if samples.shape[1] != target_channels:
+            samples = convert_channels(samples, target_channels)
+        
+        # Add to mix at correct timeline position
+        start_sample = int(absolute_time * target_sample_rate)
+        mixed_audio[start_sample:start_sample + len(samples)] += samples
+
+# Normalize if clipping would occur
+peak = np.abs(mixed_audio).max()
+if peak > 1.0:
+    mixed_audio /= peak
+```
+
+Source: `src/movielite/core/video_writer.py:279`
+
+### Sample Rate Conversion
+
+Different sample rates are handled automatically:
+
+```python
+# Different sample rates
+audio1 = AudioClip("music.mp3", start=0, duration=10)     # 44100 Hz
+audio2 = AudioClip("sfx.wav", start=5, duration=5)        # 48000 Hz
+audio3 = AudioClip("voice.mp3", start=8, duration=7)      # 22050 Hz
+
+writer.add_clips([audio1, audio2, audio3])
+writer.write()
+
+# All resampled to 48000 Hz (highest rate) during mixing
+```
+
+### Channel Conversion
+
+Mono and stereo clips are mixed correctly:
+
+```python
+mono_audio = AudioClip("mono.mp3", start=0, duration=10)    # 1 channel
+stereo_audio = AudioClip("stereo.mp3", start=0, duration=10) # 2 channels
+
+# Final mix will be stereo (2 channels)
+# Mono is duplicated to both channels
+# Stereo is used as-is
+```
+
+## Subclips
+
+Extract portions of audio:
+
+```python
+audio = AudioClip("long_music.mp3", start=0, duration=120)
+
+# Extract seconds 30-60
+subclip = audio.subclip(start=30.0, end=60.0)
+
+# Subclip inherits effects and settings
+subclip.set_volume(0.8)
+```
+
+Source: `src/movielite/audio/audio_clip.py:301`
+
+## Complete Example
+
+```python
+from movielite import (
+    VideoWriter, VideoClip, AudioClip,
+    afx, vfx, VideoQuality
+)
+
+# Main video with its audio
+main_video = VideoClip("main.mp4", start=0, duration=60)
+main_video.audio.set_volume(0.8)
+main_video.audio.add_effect(afx.FadeIn(2.0))
+main_video.audio.add_effect(afx.FadeOut(3.0))
+
+# Background music
+music = AudioClip("background.mp3", start=0, duration=60, offset=30)
+music.set_volume(0.3)  # Lower volume for background
+music.add_effect(afx.FadeIn(3.0))
+music.add_effect(afx.FadeOut(3.0))
+
+# Sound effects
+sfx1 = AudioClip("whoosh.wav", start=5, duration=1)
+sfx1.set_volume(0.7)
+
+sfx2 = AudioClip("impact.wav", start=15, duration=0.5)
+sfx2.set_volume(0.9)
+
+# Narration
+narration = AudioClip("voice.mp3", start=10, duration=30)
+narration.set_volume(1.0)  # Full volume
+narration.add_effect(afx.FadeIn(0.5))
+narration.add_effect(afx.FadeOut(1.0))
+
+# Volume ducking for music when narration plays
+def ducking_curve(t):
+    if 10 <= t < 40:  # During narration
+        return 0.15   # Lower music volume
+    return 0.3        # Normal music volume
+
+music.set_volume_curve(ducking_curve)
+
+# Compose and render
+writer = VideoWriter("final.mp4", fps=30, size=(1920, 1080))
+writer.add_clips([main_video, music, sfx1, sfx2, narration])
+writer.write(video_quality=VideoQuality.HIGH)
+
+print("Video with mixed audio saved to final.mp4")
+```
+
+## Memory Efficiency
+
+<CardGroup cols={2}>
+  <Card title="Chunk Processing" icon="database">
+    Audio is processed in 10-second chunks by default. This keeps memory usage low even for hours of audio.
+  </Card>
+  
+  <Card title="Lazy Loading" icon="clock">
+    Audio samples are loaded on-demand during rendering. Source files aren't fully loaded into memory.
+  </Card>
+  
+  <Card title="FFmpeg Streaming" icon="stream">
+    Audio extraction uses FFmpeg's streaming mode, avoiding temporary files.
+  </Card>
+  
+  <Card title="Effect Transforms" icon="wand-magic-sparkles">
+    Effects are applied to chunks as they're processed, not to the entire audio at once.
+  </Card>
+</CardGroup>
+
+## Performance Tips
+
+### Efficient Audio Processing
+
+```python
+# Good: Process in chunks
+for samples, t in audio.iter_chunks(chunk_duration=10.0):
+    process(samples)
+
+# Bad: Load everything into memory
+all_samples = audio.get_samples()  # May use GB of memory
+process(all_samples)
+```
+
+### Minimize Resampling
+
+Use consistent sample rates across audio files:
+
+```python
+# All files at 44100 Hz - no resampling needed
+music = AudioClip("music_44100.mp3", start=0, duration=60)
+voice = AudioClip("voice_44100.mp3", start=10, duration=30)
+
+# Mixed sample rates - resampling required
+music = AudioClip("music_48000.mp3", start=0, duration=60)  # 48000 Hz
+voice = AudioClip("voice_22050.mp3", start=10, duration=30)  # 22050 Hz
+# Final mix at 48000 Hz - voice is resampled
+```
+
+### Volume vs. Volume Curve
+
+```python
+# Efficient: Static volume (single multiplication)
+audio.set_volume(0.5)
+
+# Less efficient: Volume curve (per-sample calculation)
+audio.set_volume_curve(lambda t: 0.5)
+
+# Only use curves when volume actually changes:
+audio.set_volume_curve(lambda t: 0.5 + 0.3 * math.sin(t))
+```
+
+## Troubleshooting
+
+<Accordion title="No audio in output video">
+Check these common issues:
+
+1. Ensure audio clips have `has_audio=True`
+   ```python
+   print(audio.has_audio)  # Should be True
+   ```
+
+2. Verify clip timing overlaps with video duration
+   ```python
+   print(f"Audio: {audio.start}s - {audio.end}s")
+   print(f"Video duration: {writer._duration}s")
+   ```
+
+3. Check volume isn't set to 0
+   ```python
+   print(audio.volume)  # Should be > 0
+   ```
+</Accordion>
+
+<Accordion title="Audio is distorted or clipping">
+Clipping occurs when mixed audio exceeds [-1, 1] range:
+
+```python
+# Solution 1: Reduce individual volumes
+audio1.set_volume(0.5)
+audio2.set_volume(0.5)
+music.set_volume(0.3)
+
+# Solution 2: VideoWriter auto-normalizes, but reduce volumes for better quality
+```
+
+Note: VideoWriter automatically normalizes if peak > 1.0, but lowering volumes manually gives better results.
+</Accordion>
+
+<Accordion title="Audio out of sync with video">
+Sync issues can occur with:
+
+1. **Variable frame rate videos** - Convert to constant frame rate:
+   ```bash
+   ffmpeg -i input.mp4 -r 30 -c:v libx264 -c:a copy output.mp4
+   ```
+
+2. **Speed adjustments** - Ensure both video and audio have same speed:
+   ```python
+   video.set_speed(1.5)
+   # video.audio.speed is automatically updated
+   ```
+
+3. **Incorrect start times** - Verify clip timings:
+   ```python
+   print(f"Video start: {video.start}, Audio start: {video.audio.start}")
+   ```
+</Accordion>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Clips" icon="film" href="/concepts/clips">
+    Learn about VideoClip and audio extraction
+  </Card>
+  
+  <Card title="Effects" icon="wand-magic-sparkles" href="/concepts/effects">
+    Apply audio effects and transitions
+  </Card>
+  
+  <Card title="Video Writer" icon="file-video" href="/concepts/video-writer">
+    Understand the rendering pipeline
+  </Card>
+</CardGroup>

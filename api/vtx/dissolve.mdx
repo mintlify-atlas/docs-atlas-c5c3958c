@@ -1,0 +1,206 @@
+---
+title: 'Dissolve'
+description: 'Dissolve transition - alias for CrossFade'
+---
+
+## Overview
+
+`Dissolve` is an **alias for CrossFade** with identical behavior. It smoothly blends from one clip to another by fading out the first clip while simultaneously fading in the second clip. This applies to both video (opacity) and audio (volume).
+
+<Info>
+  `Dissolve` and `CrossFade` are the same transition effect. Use whichever name you prefer - both produce identical results.
+</Info>
+
+<Note>
+  **Requires overlapping clips**: The clips must have overlapping time ranges with at least `duration` seconds of overlap.
+</Note>
+
+## Constructor
+
+```python
+from movielite import vtx
+
+transition = vtx.Dissolve(duration)
+```
+
+### Parameters
+
+<ParamField path="duration" type="float" required>
+  Duration of the dissolve effect in seconds. The clips must overlap by at least this amount.
+</ParamField>
+
+## Methods
+
+### apply()
+
+Apply the dissolve transition between two clips.
+
+```python
+transition.apply(clip1, clip2)
+```
+
+#### Parameters
+
+<ParamField path="clip1" type="GraphicClip" required>
+  The outgoing clip that will fade out at the end. The fade-out occurs during the last `duration` seconds of this clip.
+</ParamField>
+
+<ParamField path="clip2" type="GraphicClip" required>
+  The incoming clip that will fade in at the beginning. The fade-in occurs during the first `duration` seconds of this clip.
+</ParamField>
+
+#### Raises
+
+- **ValueError**: If clips don't have sufficient overlap for the transition duration
+- **ValueError**: If clips are not in proper sequence (clip2 must start after clip1)
+
+## Usage Examples
+
+### Basic Dissolve
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+# Create clips with 1 second overlap
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.0, duration=5)  # Starts 1s before clip1 ends
+
+# Apply 1 second dissolve
+transition = vtx.Dissolve(duration=1.0)
+clip1.add_transition(clip2, transition)
+
+# Calculate total duration accounting for overlap
+total_duration = clip1.duration + clip2.duration - 1.0  # 9 seconds
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+### Dissolve vs CrossFade (Identical)
+
+These two examples produce **exactly the same result**:
+
+```python
+# Using Dissolve
+clip1.add_transition(clip2, vtx.Dissolve(duration=0.5))
+
+# Using CrossFade - produces identical output
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+```
+
+### Multiple Dissolves in Sequence
+
+```python
+# Create three clips with overlaps
+clip1 = VideoClip("scene1.mp4", start=0, duration=4)
+clip2 = VideoClip("scene2.mp4", start=3.5, duration=4)  # 0.5s overlap
+clip3 = VideoClip("scene3.mp4", start=7.0, duration=4)  # 0.5s overlap with clip2
+
+# Apply dissolves between each pair
+clip1.add_transition(clip2, vtx.Dissolve(duration=0.5))
+clip2.add_transition(clip3, vtx.Dissolve(duration=0.5))
+
+total_duration = 11.0  # 4 + 4 + 4 - 0.5 - 0.5
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2, clip3])
+writer.write()
+```
+
+### Dissolve with Image Clips
+
+```python
+from movielite import ImageClip, VideoWriter, vtx
+
+# Create image slideshow
+img1 = ImageClip("photo1.jpg", start=0, duration=3)
+img2 = ImageClip("photo2.jpg", start=2.5, duration=3)  # 0.5s overlap
+img3 = ImageClip("photo3.jpg", start=5.0, duration=3)  # 0.5s overlap
+
+# Apply dissolve transitions
+img1.add_transition(img2, vtx.Dissolve(duration=0.5))
+img2.add_transition(img3, vtx.Dissolve(duration=0.5))
+
+total_duration = 7.5  # 3 + 3 + 3 - 0.5 - 0.5
+
+writer = VideoWriter("slideshow.mp4", fps=30, size=img1.size, duration=total_duration)
+writer.add_clips([img1, img2, img3])
+writer.write()
+```
+
+## How It Works
+
+The dissolve transition works identically to CrossFade:
+
+### Video Dissolve
+
+1. **Clip1 fade-out**: During the last `duration` seconds, opacity gradually decreases from 1.0 to 0.0
+2. **Clip2 fade-in**: During the first `duration` seconds, opacity gradually increases from 0.0 to 1.0
+3. The overlapping region shows both clips blended together
+
+### Audio Dissolve
+
+If both clips are `VideoClip` instances with audio:
+
+1. **Clip1 audio fade-out**: Volume decreases at the end
+2. **Clip2 audio fade-in**: Volume increases at the beginning
+3. Creates smooth audio transition without abrupt cuts
+
+## Common Errors
+
+<Warning>
+  **Insufficient overlap error**
+  
+  ```
+  ValueError: Insufficient overlap for transition. 
+  Required overlap: 1.0s, actual overlap: 0.5s.
+  ```
+  
+  **Solution**: Adjust clip start times to ensure sufficient overlap. If the transition duration is 1.0s, clip2 must start at least 1.0s before clip1 ends.
+</Warning>
+
+<Warning>
+  **No overlap error**
+  
+  ```
+  ValueError: Clips do not overlap. 
+  Clip1 ends at 5.0s, but Clip2 starts at 5.0s.
+  ```
+  
+  **Solution**: Move clip2's start time earlier. For example, if clip1 ends at 5.0s and you want a 1.0s dissolve, set clip2 to start at 4.0s.
+</Warning>
+
+## When to Use Dissolve vs CrossFade
+
+Both names are valid and produce identical results:
+
+- **Use `CrossFade`** if you think of the effect as "cross-fading" between clips
+- **Use `Dissolve`** if you prefer traditional video editing terminology
+- **Use either** - they are functionally identical
+
+<Info>
+  In traditional video editing, "dissolve" and "crossfade" are often used interchangeably. MovieLite provides both names for convenience.
+</Info>
+
+## Implementation Details
+
+`Dissolve` is implemented as a direct subclass of `CrossFade` with no additional modifications:
+
+```python
+class Dissolve(CrossFade):
+    """Dissolve transition (alias for CrossFade)."""
+    pass
+```
+
+Source code reference: `/home/daytona/workspace/source/src/movielite/vtx/dissolve.py:4`
+
+## See Also
+
+- [CrossFade](/api/vtx/crossfade) - Identical transition with different name
+- [BlurDissolve](/api/vtx/blur-dissolve) - Dissolve with blur effect
+- [vtx Overview](/api/vtx/overview) - All video transitions
+- [Fade effect](/api/vfx/fade) - Simple fade in/out for single clips

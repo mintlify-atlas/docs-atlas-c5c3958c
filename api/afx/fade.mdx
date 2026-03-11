@@ -1,0 +1,157 @@
+---
+title: 'Fade Effects'
+description: 'Fade in and fade out audio effects for MovieLite'
+---
+
+Fade effects gradually adjust the volume of audio clips over a specified duration.
+
+## FadeIn
+
+Gradually increases volume from 0 to the clip's original volume over the specified duration.
+
+```python
+from movielite.afx import FadeIn
+```
+
+### Constructor
+
+```python
+FadeIn(duration: float)
+```
+
+<ParamField path="duration" type="float" required>
+  Duration of the fade in seconds, applied from the start of the clip. Must be a positive number.
+</ParamField>
+
+### Methods
+
+#### apply
+
+```python
+def apply(self, clip: AudioClip) -> None
+```
+
+Apply the fade in effect by adding a transform to the clip's processing pipeline.
+
+<ParamField path="clip" type="AudioClip" required>
+  The AudioClip to apply the fade in effect to
+</ParamField>
+
+**Returns:** `None` (modifies the clip in place)
+
+### How It Works
+
+The fade in effect:
+1. Calculates the fade period from `clip.offset` to `clip.offset + duration`
+2. Applies a linear fade factor to each audio sample during the fade period
+3. Leaves samples after the fade period unmodified
+
+The fade factor increases linearly from 0 to 1:
+- At the start: `fade_factor = 0` (silence)
+- At the end: `fade_factor = 1` (original volume)
+
+### Example
+
+```python
+from movielite.audio import AudioClip
+from movielite.afx import FadeIn
+
+# Create an audio clip
+clip = AudioClip("music.mp3")
+
+# Apply a 3-second fade in from the start
+fade = FadeIn(duration=3.0)
+fade.apply(clip)
+```
+
+<Note>
+  The fade is applied relative to the clip's offset, not absolute timeline position.
+</Note>
+
+---
+
+## FadeOut
+
+Gradually decreases volume from the clip's original volume to 0 over the specified duration.
+
+```python
+from movielite.afx import FadeOut
+```
+
+### Constructor
+
+```python
+FadeOut(duration: float)
+```
+
+<ParamField path="duration" type="float" required>
+  Duration of the fade in seconds, applied at the end of the clip. Must be a positive number.
+</ParamField>
+
+### Methods
+
+#### apply
+
+```python
+def apply(self, clip: AudioClip) -> None
+```
+
+Apply the fade out effect by adding a transform to the clip's processing pipeline.
+
+<ParamField path="clip" type="AudioClip" required>
+  The AudioClip to apply the fade out effect to
+</ParamField>
+
+**Returns:** `None` (modifies the clip in place)
+
+### How It Works
+
+The fade out effect:
+1. Calculates the fade period from `clip.offset + clip.duration - duration` to `clip.offset + clip.duration`
+2. Applies a linear fade factor to each audio sample during the fade period
+3. Leaves samples before the fade period unmodified
+
+The fade factor decreases linearly from 1 to 0:
+- At the start: `fade_factor = 1` (original volume)
+- At the end: `fade_factor = 0` (silence)
+
+### Example
+
+```python
+from movielite.audio import AudioClip
+from movielite.afx import FadeOut
+
+# Create an audio clip
+clip = AudioClip("music.mp3")
+
+# Apply a 2-second fade out at the end
+fade = FadeOut(duration=2.0)
+fade.apply(clip)
+```
+
+<Note>
+  The fade is calculated from the end of the clip backwards by the specified duration.
+</Note>
+
+---
+
+## Combining Fade Effects
+
+You can apply both fade in and fade out to the same clip:
+
+```python
+from movielite.audio import AudioClip
+from movielite.afx import FadeIn, FadeOut
+
+clip = AudioClip("background_music.mp3")
+
+# Fade in over 2 seconds at the start
+FadeIn(duration=2.0).apply(clip)
+
+# Fade out over 3 seconds at the end
+FadeOut(duration=3.0).apply(clip)
+```
+
+<Info>
+  Both effects add transforms to the clip's processing pipeline and work independently. The order of application doesn't matter since they affect different parts of the clip.
+</Info>

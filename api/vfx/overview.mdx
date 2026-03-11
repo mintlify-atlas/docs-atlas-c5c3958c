@@ -1,0 +1,121 @@
+---
+title: VFX Effects Overview
+description: Visual effects library for MovieLite video editing
+---
+
+MovieLite provides a comprehensive suite of visual effects that can be applied to video clips. All effects inherit from the `GraphicEffect` base class and can be added to clips using the `add_effect()` method.
+
+## Available Effects
+
+<CardGroup cols={2}>
+  <Card title="Fade Effects" icon="circle-half-stroke" href="/api/vfx/fade">
+    Smooth fade-in and fade-out transitions by animating opacity
+  </Card>
+  
+  <Card title="Blur Effects" icon="droplet" href="/api/vfx/blur">
+    Gaussian blur effects including static, animated, blur-in, and blur-out
+  </Card>
+  
+  <Card title="Color Effects" icon="palette" href="/api/vfx/color">
+    Color adjustments: saturation, brightness, contrast, grayscale, and sepia
+  </Card>
+  
+  <Card title="Zoom Effects" icon="magnifying-glass-plus" href="/api/vfx/zoom">
+    Zoom-in, zoom-out, and cinematic Ken Burns effects
+  </Card>
+  
+  <Card title="Glitch Effects" icon="bolt" href="/api/vfx/glitch">
+    Digital distortion: glitch, chromatic aberration, and pixelate
+  </Card>
+  
+  <Card title="Rotation" icon="rotate" href="/api/vfx/rotation">
+    Static and animated rotation with customizable options
+  </Card>
+  
+  <Card title="Vignette" icon="circle-dot" href="/api/vfx/vignette">
+    Darken edges to create a vignette effect
+  </Card>
+</CardGroup>
+
+## Basic Usage
+
+All visual effects are applied using the `add_effect()` method:
+
+```python
+from movielite import VideoClip, vfx
+
+# Load a video clip
+clip = VideoClip("input.mp4")
+
+# Add effects
+clip.add_effect(vfx.FadeIn(duration=2.0))
+clip.add_effect(vfx.Saturation(factor=1.5))
+clip.add_effect(vfx.Vignette(intensity=0.5, radius=0.8))
+```
+
+## Combining Effects
+
+Multiple effects can be chained together and will be applied in the order they are added:
+
+```python
+clip = VideoClip("input.mp4")
+
+# Effects are applied sequentially
+clip.add_effect(vfx.FadeIn(1.0))
+clip.add_effect(vfx.Brightness(1.2))
+clip.add_effect(vfx.Contrast(1.3))
+clip.add_effect(vfx.Vignette(intensity=0.4))
+clip.add_effect(vfx.FadeOut(1.5))
+```
+
+## Effect Categories
+
+### Opacity Effects
+- **FadeIn**: Gradually increase opacity from 0 to full
+- **FadeOut**: Gradually decrease opacity to 0
+
+### Blur Effects
+- **Blur**: Apply static or animated Gaussian blur
+- **BlurIn**: Start blurred and become sharp
+- **BlurOut**: Start sharp and become blurred
+
+### Color Adjustments
+- **Saturation**: Adjust color saturation (0.0 = grayscale, >1.0 = more saturated)
+- **Brightness**: Adjust brightness/exposure
+- **Contrast**: Adjust contrast
+- **BlackAndWhite** / **Grayscale**: Convert to grayscale
+- **Sepia**: Apply vintage sepia tone
+
+### Motion & Transform
+- **ZoomIn**: Gradually scale up the clip
+- **ZoomOut**: Gradually scale down the clip
+- **KenBurns**: Cinematic slow zoom + pan effect
+- **Rotation**: Rotate by a specific angle (static or animated)
+
+### Distortion & Stylization
+- **Glitch**: Digital glitch artifacts with RGB shift
+- **ChromaticAberration**: Lens distortion effect
+- **Pixelate**: Blocky pixelation effect
+- **Vignette**: Darken frame edges
+
+## Performance Considerations
+
+<Note>
+Some effects use Numba JIT compilation for optimized performance (e.g., `Brightness`, `Contrast`). The first frame may take slightly longer to process while the JIT compiler optimizes the code.
+</Note>
+
+<Info>
+Effects like `Blur` and `Rotation` use OpenCV's optimized functions for fast processing, even at high resolutions.
+</Info>
+
+## Next Steps
+
+Explore individual effect documentation for detailed parameters, examples, and usage patterns:
+
+- [Fade Effects](/api/vfx/fade)
+- [Blur Effects](/api/vfx/blur)
+- [Color Effects](/api/vfx/color)
+- [Zoom Effects](/api/vfx/zoom)
+- [Glitch Effects](/api/vfx/glitch)
+- [Rotation](/api/vfx/rotation)
+- [Vignette](/api/vfx/vignette)

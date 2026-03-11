@@ -1,0 +1,299 @@
+---
+title: Installation
+description: Install MovieLite and its dependencies to start creating videos
+---
+
+## Requirements
+
+Before installing MovieLite, ensure your system meets these requirements:
+
+<CardGroup cols={2}>
+  <Card title="Python Version" icon="python">
+    Python 3.10, 3.11, 3.12, or 3.13
+  </Card>
+  <Card title="FFmpeg" icon="video">
+    FFmpeg must be installed and available in PATH
+  </Card>
+</CardGroup>
+
+## Install MovieLite
+
+<Steps>
+  <Step title="Install via pip">
+    Install MovieLite using pip:
+
+    ```bash
+    pip install movielite
+    ```
+
+    This will automatically install all required Python dependencies:
+    - NumPy (numerical operations)
+    - Numba (JIT compilation for performance)
+    - OpenCV (opencv-python for video processing)
+    - multiprocess (parallel rendering)
+    - tqdm (progress bars)
+    - pictex (text rendering)
+  </Step>
+
+  <Step title="Install FFmpeg">
+    FFmpeg is required for video encoding and decoding. Follow the installation instructions for your operating system below.
+  </Step>
+
+  <Step title="Verify installation">
+    Verify that MovieLite is installed correctly:
+
+    ```python
+    import movielite
+    print(movielite.__version__)
+    ```
+
+    You should see the version number (e.g., `0.2.2`) printed.
+  </Step>
+</Steps>
+
+## Installing FFmpeg
+
+FFmpeg is a critical dependency for MovieLite. It handles video and audio encoding/decoding.
+
+### Windows
+
+<Steps>
+  <Step title="Download FFmpeg">
+    Download FFmpeg from the official website:
+    
+    [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
+    
+    Choose the Windows build (e.g., from gyan.dev or BtbN).
+  </Step>
+
+  <Step title="Extract the archive">
+    Extract the downloaded archive to a permanent location, such as:
+    
+    ```
+    C:\ffmpeg
+    ```
+  </Step>
+
+  <Step title="Add to PATH">
+    Add the `bin` directory to your system PATH:
+
+    1. Open **System Properties** → **Advanced** → **Environment Variables**
+    2. Under **System Variables**, find and select **Path**, then click **Edit**
+    3. Click **New** and add the path to FFmpeg's bin directory:
+       ```
+       C:\ffmpeg\bin
+       ```
+    4. Click **OK** to save
+  </Step>
+
+  <Step title="Verify installation">
+    Open a new Command Prompt and verify FFmpeg is accessible:
+
+    ```bash
+    ffmpeg -version
+    ```
+
+    You should see FFmpeg version information.
+  </Step>
+</Steps>
+
+### macOS
+
+<Steps>
+  <Step title="Install Homebrew (if not installed)">
+    If you don't have Homebrew, install it first:
+
+    ```bash
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    ```
+  </Step>
+
+  <Step title="Install FFmpeg">
+    Use Homebrew to install FFmpeg:
+
+    ```bash
+    brew install ffmpeg
+    ```
+
+    Homebrew will automatically add FFmpeg to your PATH.
+  </Step>
+
+  <Step title="Verify installation">
+    Verify FFmpeg is installed:
+
+    ```bash
+    ffmpeg -version
+    ```
+
+    You should see FFmpeg version information.
+  </Step>
+</Steps>
+
+### Linux
+
+#### Debian/Ubuntu
+
+<Steps>
+  <Step title="Update package list">
+    ```bash
+    sudo apt-get update
+    ```
+  </Step>
+
+  <Step title="Install FFmpeg">
+    ```bash
+    sudo apt-get install ffmpeg
+    ```
+  </Step>
+
+  <Step title="Verify installation">
+    ```bash
+    ffmpeg -version
+    ```
+  </Step>
+</Steps>
+
+#### CentOS/RHEL/Fedora
+
+<Steps>
+  <Step title="Enable EPEL repository (CentOS/RHEL)">
+    For CentOS/RHEL, enable the EPEL repository:
+    
+    ```bash
+    sudo yum install epel-release
+    ```
+
+    <Note>Fedora users can skip this step.</Note>
+  </Step>
+
+  <Step title="Install FFmpeg">
+    ```bash
+    sudo yum install ffmpeg
+    ```
+
+    Or for newer versions:
+    
+    ```bash
+    sudo dnf install ffmpeg
+    ```
+  </Step>
+
+  <Step title="Verify installation">
+    ```bash
+    ffmpeg -version
+    ```
+  </Step>
+</Steps>
+
+#### Arch Linux
+
+<Steps>
+  <Step title="Install FFmpeg">
+    ```bash
+    sudo pacman -S ffmpeg
+    ```
+  </Step>
+
+  <Step title="Verify installation">
+    ```bash
+    ffmpeg -version
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### FFmpeg Not Found
+
+If you get an error that FFmpeg cannot be found:
+
+<Steps>
+  <Step title="Check PATH">
+    Verify FFmpeg is in your system PATH:
+
+    ```bash
+    # Windows (Command Prompt)
+    where ffmpeg
+
+    # macOS/Linux
+    which ffmpeg
+    ```
+
+    If this doesn't return a path, FFmpeg is not in your PATH.
+  </Step>
+
+  <Step title="Restart terminal/IDE">
+    After adding FFmpeg to PATH, restart your terminal or IDE to reload environment variables.
+  </Step>
+
+  <Step title="Manual PATH configuration">
+    If FFmpeg is still not found, you can specify the FFmpeg path in your code (not recommended for production):
+
+    ```python
+    import os
+    os.environ["FFMPEG_BINARY"] = "/path/to/ffmpeg"
+    ```
+  </Step>
+</Steps>
+
+### Import Errors
+
+If you encounter import errors:
+
+<Steps>
+  <Step title="Check Python version">
+    Ensure you're using Python 3.10 or higher:
+
+    ```bash
+    python --version
+    ```
+  </Step>
+
+  <Step title="Reinstall dependencies">
+    Try reinstalling MovieLite and its dependencies:
+
+    ```bash
+    pip uninstall movielite
+    pip install movielite
+    ```
+  </Step>
+
+  <Step title="Use virtual environment">
+    Create a fresh virtual environment:
+
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    pip install movielite
+    ```
+  </Step>
+</Steps>
+
+### Performance Issues
+
+<Info>
+For optimal performance, ensure:
+- Numba is properly installed (it provides JIT compilation)
+- You're using multiprocessing for large projects: `writer.write(processes=8)`
+- Your system has sufficient RAM for video processing
+</Info>
+
+## Optional Dependencies
+
+For development and testing:
+
+```bash
+pip install movielite[test]
+```
+
+This installs:
+- pytest (testing framework)
+- pytest-cov (code coverage)
+
+## Next Steps
+
+Now that MovieLite is installed, you're ready to create your first video!
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Learn how to create your first video with MovieLite
+</Card>

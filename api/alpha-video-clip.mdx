@@ -1,0 +1,260 @@
+---
+title: 'AlphaVideoClip'
+description: 'Load and process video files with alpha channel support (transparency)'
+---
+
+## Overview
+
+`AlphaVideoClip` extends [`VideoClip`](/api/video-clip) to support videos with transparency (alpha channel). Frames are loaded in BGRA format using FFmpeg.
+
+<Warning>
+AlphaVideoClip has a performance penalty compared to VideoClip (~33% more memory per frame due to the alpha channel). Only use this when you need transparency support.
+</Warning>
+
+Defined in: `src/movielite/video/alpha_video_clip.py:12`
+
+## Constructor
+
+```python
+AlphaVideoClip(path: str, start: float = 0, duration: Optional[float] = None, offset: float = 0)
+```
+
+<ParamField path="path" type="str" required>
+  Path to the video file with alpha channel. Commonly `.mov` or `.webm` with transparency
+</ParamField>
+
+<ParamField path="start" type="float" default="0">
+  Start time in the composition timeline (seconds)
+</ParamField>
+
+<ParamField path="duration" type="float" default="None">
+  Duration to use from the video. If `None`, uses the full video duration
+</ParamField>
+
+<ParamField path="offset" type="float" default="0">
+  Start offset within the video file (seconds)
+</ParamField>
+
+### Raises
+
+- `ValueError`: If the file format is not supported
+- `FileNotFoundError`: If the video file doesn't exist
+- `RuntimeError`: If unable to read video metadata or invalid video properties
+
+### Example
+
+```python
+from movielite import AlphaVideoClip
+
+# Load transparent video (e.g., animation with transparency)
+alpha_video = AlphaVideoClip("animated_overlay.mov")
+
+# Load with offset and duration
+alpha_video = AlphaVideoClip("transparent.webm", start=2, duration=5, offset=1)
+```
+
+## Key Differences from VideoClip
+
+<Info>
+**Frame Format:** AlphaVideoClip loads frames in BGRA format (4 channels) instead of BGR (3 channels).
+
+**Metadata Loading:** Uses FFprobe instead of OpenCV for more accurate metadata extraction.
+
+**Frame Reading:** Uses FFmpeg pipe for frame extraction to preserve alpha channel.
+</Info>
+
+## Properties
+
+AlphaVideoClip inherits all properties from [`VideoClip`](/api/video-clip):
+
+- `fps` - Frames per second
+- `audio` - Audio track (AudioClip)
+- `size` - Video dimensions (width, height)
+- `start`, `duration`, `end`, `speed` - Timing properties
+
+## Methods
+
+### subclip
+
+```python
+subclip(start: float, end: float) -> AlphaVideoClip
+```
+
+Extract a portion of this video clip.
+
+<ParamField path="start" type="float" required>
+  Start time within this clip (seconds)
+</ParamField>
+
+<ParamField path="end" type="float" required>
+  End time within this clip (seconds)
+</ParamField>
+
+<ResponseField name="return" type="AlphaVideoClip">
+  New AlphaVideoClip instance representing the extracted portion
+</ResponseField>
+
+**Example:**
+```python
+video = AlphaVideoClip("transparent.mov")  # 30 second video
+segment = video.subclip(10, 20)  # Extract seconds 10-20
+```
+
+Defined in: `src/movielite/video/alpha_video_clip.py:171`
+
+---
+
+### close
+
+```python
+close() -> None
+```
+
+Close the video file and FFmpeg pipe, releasing all resources.
+
+**Example:**
+```python
+video = AlphaVideoClip("transparent.mov")
+# ... use the video ...
+video.close()  # Clean up FFmpeg processes
+```
+
+Defined in: `src/movielite/video/alpha_video_clip.py:166`
+
+---
+
+### Inherited Methods
+
+<Accordion title="All methods inherited from VideoClip">
+
+AlphaVideoClip inherits all methods from VideoClip:
+
+- `set_start(start)` - Set start time
+- `set_duration(duration)` - Set duration
+- `set_offset(offset)` - Set source offset
+- `set_end(end)` - Set end time
+- `set_speed(speed)` - Set playback speed
+- `loop(enabled)` - Enable/disable looping
+- `set_position(value)` - Set position on canvas
+- `set_opacity(value)` - Set opacity
+- `set_scale(value)` - Set scale
+- `set_rotation(angle, ...)` - Set rotation
+- `set_size(width, height)` - Resize video
+- `set_mask(mask)` - Apply mask
+- `add_effect(effect)` - Add visual effect
+- `add_transition(next_clip, transition)` - Add transition
+- `add_transform(callback)` - Add custom transform
+
+See [`VideoClip`](/api/video-clip) for detailed documentation of these methods.
+
+</Accordion>
+
+## Implementation Details
+
+<Accordion title="Technical implementation notes">
+
+### Metadata Loading
+
+AlphaVideoClip uses FFprobe to extract metadata (defined in `alpha_video_clip.py:34`):
+
+```python
+ffprobe -v error -select_streams v:0 \
+  -show_entries stream=width,height,r_frame_rate,duration \
+  -of csv=p=0 video.mov
+```
+
+Frame count is determined accurately using:
+```python
+ffprobe -v error -select_streams v:0 -count_frames \
+  -show_entries stream=nb_read_frames -of csv=p=0 video.mov
+```
+
+### Frame Extraction
+
+Frames are read using FFmpeg pipe (defined in `alpha_video_clip.py:117`):
+
+```python
+ffmpeg -ss {start_time} -i video.mov \
+  -f rawvideo -pix_fmt bgra -vsync 0 -
+```
+
+This preserves the alpha channel that would be lost with OpenCV's VideoCapture.
+
+### Frame Seeking
+
+The class uses intelligent seeking:
+- Reopens FFmpeg pipe when seeking backwards or jumping more than 10 frames
+- Sequential reading for small gaps (< 10 frames) for efficiency
+- Caches the last frame to avoid redundant reads
+
+</Accordion>
+
+## Complete Example
+
+```python
+from movielite import VideoClip, AlphaVideoClip, VideoWriter, vfx
+
+# Background video (standard)
+background = VideoClip("background.mp4", start=0, duration=10)
+background.set_size(width=1920, height=1080)
+
+# Overlay with transparency
+overlay = AlphaVideoClip("logo_animation.mov", start=2, duration=5)
+overlay.set_size(width=400)  # Resize maintaining aspect ratio
+overlay.set_position((1920 - 420, 20))  # Top-right corner
+overlay.add_effect(vfx.FadeIn(0.5))
+overlay.add_effect(vfx.FadeOut(0.5))
+
+# Another transparent overlay
+animation = AlphaVideoClip("particles.webm", start=0, duration=10)
+animation.set_size(width=1920, height=1080)
+animation.set_opacity(0.6)  # Semi-transparent
+
+# Render with transparency compositing
+writer = VideoWriter("output.mp4", fps=30, size=(1920, 1080))
+writer.add_clips([background, animation, overlay])
+writer.write()
+
+background.close()
+overlay.close()
+animation.close()
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Logo Overlays" icon="image">
+    Add transparent logos or watermarks to videos
+  </Card>
+  <Card title="Particle Effects" icon="sparkles">
+    Composite transparent particle effects and animations
+  </Card>
+  <Card title="Green Screen" icon="video">
+    Use pre-keyed transparent video footage
+  </Card>
+  <Card title="UI Elements" icon="window">
+    Add transparent UI elements and graphics
+  </Card>
+</CardGroup>
+
+## Performance Considerations
+
+<Warning>
+**Memory Usage:** BGRA frames use 33% more memory than BGR frames (4 bytes vs 3 bytes per pixel).
+
+**Processing Speed:** FFmpeg pipe extraction is slightly slower than OpenCV's direct video reading.
+
+**Best Practice:** Only use AlphaVideoClip when you actually need transparency. For standard videos, use [`VideoClip`](/api/video-clip) instead.
+</Warning>
+
+### Optimization Tips
+
+1. **Resize before compositing:** Resize alpha videos to their final size before adding effects
+2. **Limit layer count:** Too many alpha layers can slow rendering significantly
+3. **Pre-process when possible:** If the alpha video doesn't change, consider rendering it once
+
+## See Also
+
+- [`VideoClip`](/api/video-clip) - For standard videos without transparency
+- [`ImageClip`](/api/image-clip) - For static images (also supports alpha)
+- [`VideoWriter`](/api/video-writer) - For rendering with transparency

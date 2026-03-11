@@ -1,0 +1,406 @@
+---
+title: 'Audio Mixing'
+description: 'Master audio track control, mixing background music, and applying audio effects in MovieLite'
+---
+
+MovieLite provides fine-grained control over audio tracks, allowing you to mix multiple audio sources, apply effects, and synchronize audio with video.
+
+<Info>
+  View the complete source code: [video_audio_control.py](https://github.com/francozanardi/movielite/blob/main/examples/video_audio_control.py)
+</Info>
+
+## Accessing Video Audio
+
+Every `VideoClip` has an `audio` property that gives you access to its audio track:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+video = VideoClip("input.mp4", start=0, duration=10)
+
+# Access the audio track
+print(f"Audio duration: {video.audio.duration}s")
+print(f"Audio start: {video.audio.start}s")
+print(f"Audio volume: {video.audio.volume}")
+```
+
+## Modifying Video Audio
+
+Apply effects and adjustments to the video's built-in audio track:
+
+```python
+from movielite import VideoClip, VideoWriter, afx
+
+video = VideoClip("sample.mp4", start=0, duration=10)
+
+# Modify the audio track
+video.audio.add_effect(afx.FadeIn(2.0))
+video.audio.add_effect(afx.FadeOut(2.0))
+video.audio.set_volume(0.7)
+
+writer = VideoWriter("output_with_faded_audio.mp4", duration=10)
+writer.add_clip(video)
+writer.write()
+```
+
+<Note>
+  Changes to `video.audio` automatically apply to the video when rendered. The audio stays synchronized with the video.
+</Note>
+
+## Audio Effects
+
+### Fade In
+
+Gradually increase volume from silence:
+
+```python
+video.audio.add_effect(afx.FadeIn(duration=2.0))
+```
+
+### Fade Out
+
+Gradually decrease volume to silence:
+
+```python
+video.audio.add_effect(afx.FadeOut(duration=2.0))
+```
+
+### Volume Control
+
+Set the overall volume level:
+
+```python
+video.audio.set_volume(0.5)  # 50% volume
+video.audio.set_volume(1.0)  # 100% volume (default)
+video.audio.set_volume(1.5)  # 150% volume (amplify)
+```
+
+<CodeGroup>
+```python Fade In + Out
+video.audio.add_effect(afx.FadeIn(2.0)).add_effect(afx.FadeOut(2.0))
+```
+
+```python Reduce Volume
+video.audio.set_volume(0.3)
+```
+
+```python Combined
+video.audio.add_effect(afx.FadeIn(2.0)).add_effect(afx.FadeOut(2.0)).set_volume(0.7)
+```
+</CodeGroup>
+
+## Adding Background Music
+
+Mix background music with your video's audio:
+
+```python
+from movielite import VideoClip, AudioClip, VideoWriter
+
+video = VideoClip("sample.mp4", start=0, duration=10)
+
+# Reduce video audio volume
+video.audio.set_volume(0.3)
+
+# Add background music
+music = AudioClip("music.mp3", start=0, duration=10)
+music.set_volume(0.7)
+
+writer = VideoWriter("output_with_music.mp4", duration=10)
+writer.add_clip(video)
+writer.add_clip(music)
+writer.write()
+```
+
+### Audio Mixing Behavior
+
+When multiple audio tracks overlap, MovieLite mixes them together:
+
+- Audio is **added** together (not replaced)
+- Adjust volumes to prevent clipping
+- Total volume of overlapping tracks shouldn't exceed 1.0
+
+<Note>
+  If you have video audio at 0.7 and music at 0.7, the combined volume is 1.4, which may cause audio distortion. Balance your volumes accordingly.
+</Note>
+
+## Offsetting Audio from Video
+
+Delay or advance audio relative to video:
+
+```python
+video = VideoClip("sample.mp4", start=0, duration=10)
+
+# Video starts at 0, but audio starts at 2 seconds
+video.audio._start = 2.0
+
+writer = VideoWriter("output_audio_delayed.mp4", duration=12)
+writer.add_clip(video)
+writer.write()
+```
+
+<Warning>
+  Using `_start` directly breaks audio-video sync. Use this carefully and only when you specifically need independent audio timing.
+</Warning>
+
+## Synchronized Timing Changes
+
+When you modify video timing, audio automatically stays synchronized:
+
+```python
+video = VideoClip("sample.mp4", start=0, duration=10)
+
+# Both video and audio start at 5 seconds
+video.set_start(5.0)
+
+# Both video and audio are 8 seconds long
+video.set_duration(8.0)
+
+writer = VideoWriter("output_synced.mp4", duration=15)
+writer.add_clip(video)
+writer.write()
+```
+
+## Multiple Audio Tracks
+
+Create complex audio mixes with multiple `AudioClip` instances:
+
+```python
+from movielite import VideoClip, AudioClip, VideoWriter, afx
+
+video = VideoClip("video.mp4", start=0, duration=30)
+video.audio.set_volume(0.4)  # Reduce original audio
+
+# Background music (full duration)
+music = AudioClip("background.mp3", start=0, duration=30, volume=0.3)
+music.add_effect(afx.FadeIn(2.0))
+music.add_effect(afx.FadeOut(3.0))
+
+# Sound effect at 5 seconds
+sfx1 = AudioClip("whoosh.wav", start=5.0, volume=0.8)
+
+# Another sound effect at 10 seconds
+sfx2 = AudioClip("ding.wav", start=10.0, volume=0.6)
+
+# Voiceover from 15-25 seconds
+voiceover = AudioClip("narration.mp3", start=15.0, duration=10, volume=0.9)
+voiceover.add_effect(afx.FadeIn(0.5))
+voiceover.add_effect(afx.FadeOut(0.5))
+
+writer = VideoWriter("output_multi_audio.mp4", duration=30)
+writer.add_clip(video)
+writer.add_clips([music, sfx1, sfx2, voiceover])
+writer.write()
+```
+
+### Audio Timeline Visualization
+
+```
+         0s    5s    10s   15s   20s   25s   30s
+Video    [====================================]
+Music    [fade in===================fade out---]
+SFX1               [whoosh]
+SFX2                         [ding]
+Voice                         [fade in====fade out]
+```
+
+## Ducking (Lowering Background Music)
+
+Duck background music when voiceover plays:
+
+```python
+video = VideoClip("video.mp4", start=0, duration=30)
+video.audio.set_volume(0.2)
+
+# Full volume music for intro
+music_intro = AudioClip("music.mp3", start=0, duration=10, volume=0.6)
+music_intro.add_effect(afx.FadeOut(1.0))
+
+# Ducked music during voiceover
+music_ducked = AudioClip("music.mp3", start=9, duration=12, volume=0.2)
+
+# Voiceover
+voiceover = AudioClip("narration.mp3", start=10, duration=10, volume=0.9)
+
+# Full volume music for outro
+music_outro = AudioClip("music.mp3", start=20, duration=10, volume=0.6)
+music_outro.add_effect(afx.FadeIn(1.0))
+
+writer = VideoWriter("output_ducked.mp4", duration=30)
+writer.add_clip(video)
+writer.add_clips([music_intro, music_ducked, voiceover, music_outro])
+writer.write()
+```
+
+<Info>
+  This technique keeps background music playing but reduces its volume during important narration or dialogue.
+</Info>
+
+## Looping Audio
+
+Loop a short audio clip to match video duration:
+
+```python
+video = VideoClip("video.mp4", start=0, duration=60)
+
+# Short music track that needs to loop
+music = AudioClip("loop.mp3", start=0, duration=60, volume=0.4)
+music.loop(True)  # Enable looping
+music.add_effect(afx.FadeIn(2.0))
+music.add_effect(afx.FadeOut(2.0))
+
+writer = VideoWriter("output_looped_audio.mp4", duration=60)
+writer.add_clip(video)
+writer.add_clip(music)
+writer.write()
+```
+
+## Extracting Audio from Video
+
+Use a video's audio track as a standalone audio source:
+
+```python
+video1 = VideoClip("video1.mp4", start=0, duration=10)
+video2 = VideoClip("video2.mp4", start=0, duration=10)
+
+# Use video2's audio but video1's visuals
+video1.audio.set_volume(0)  # Mute video1's original audio
+
+writer = VideoWriter("output_swapped_audio.mp4", duration=10)
+writer.add_clip(video1)
+writer.add_clip(video2.audio)  # Add video2's audio track
+writer.write()
+```
+
+## Removing Audio from Video
+
+Create a silent video:
+
+```python
+video = VideoClip("video.mp4", start=0, duration=10)
+video.audio.set_volume(0)  # Mute the audio
+
+writer = VideoWriter("output_silent.mp4", duration=10)
+writer.add_clip(video)
+writer.write()
+```
+
+Or set the audio to `None`:
+
+```python
+video.audio = None
+```
+
+## Audio Format Support
+
+MovieLite supports common audio formats:
+
+- **MP3** - Most common, compressed
+- **WAV** - Uncompressed, high quality
+- **AAC** - Modern compressed format
+- **FLAC** - Lossless compression
+- **OGG** - Open source compressed format
+
+<Note>
+  Support depends on your FFmpeg installation. Most standard formats work out of the box.
+</Note>
+
+## Common Audio Mixing Patterns
+
+### Background Music Throughout
+
+```python
+video = VideoClip("video.mp4")
+video.audio.set_volume(0.4)
+
+music = AudioClip("music.mp3", start=0, duration=video.duration, volume=0.3)
+music.add_effect(afx.FadeIn(2.0))
+music.add_effect(afx.FadeOut(2.0))
+```
+
+### Sound Effects at Specific Times
+
+```python
+sfx_times = [5.0, 10.0, 15.0, 20.0]
+sfx_clips = [
+    AudioClip("sfx.wav", start=t, volume=0.7)
+    for t in sfx_times
+]
+
+writer.add_clips(sfx_clips)
+```
+
+### Crossfade Between Audio Tracks
+
+```python
+track1 = AudioClip("song1.mp3", start=0, duration=30, volume=0.5)
+track1.add_effect(afx.FadeOut(3.0))  # Fade out last 3 seconds
+
+track2 = AudioClip("song2.mp3", start=27, duration=30, volume=0.5)
+track2.add_effect(afx.FadeIn(3.0))  # Fade in first 3 seconds
+
+# 3 second overlap creates crossfade
+```
+
+## Volume Guidelines
+
+<Info>
+  **Recommended volume levels:**
+  - **Primary audio** (dialogue, voiceover): 0.8 - 1.0
+  - **Background music**: 0.2 - 0.4
+  - **Sound effects**: 0.5 - 0.8
+  - **Ambient sounds**: 0.1 - 0.3
+  
+  Adjust based on your content and prevent total volume from exceeding 1.0 to avoid clipping.
+</Info>
+
+## Troubleshooting
+
+### Audio and video out of sync
+
+- Ensure you're not modifying `audio._start` unless needed
+- Use `set_start()` and `set_duration()` on the video clip, not the audio directly
+
+### Audio distortion or clipping
+
+- Total volume of overlapping tracks is too high
+- Reduce individual track volumes
+- Use volume levels that sum to ≤ 1.0
+
+### No audio in output
+
+- Check `video.audio` is not `None`
+- Verify volume is not set to 0
+- Ensure audio track duration overlaps with video
+
+### Background music too loud
+
+- Reduce music volume to 0.2 - 0.4
+- Increase video audio volume if needed
+- Use ducking technique during dialogue
+
+## Performance Considerations
+
+- Audio mixing happens during rendering
+- Multiple audio tracks have minimal performance impact
+- Audio effects are lightweight
+- Large audio files (>100MB) may use more memory
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Effects Showcase" icon="wand-magic-sparkles" href="/examples/effects-showcase">
+    Learn about audio and visual effects
+  </Card>
+  
+  <Card title="Advanced Compositing" icon="layer-group" href="/examples/advanced-compositing">
+    Combine audio with complex video compositions
+  </Card>
+  
+  <Card title="AudioClip API" icon="code" href="/api/audio-clip">
+    Complete AudioClip API reference
+  </Card>
+  
+  <Card title="Audio Effects API" icon="code" href="/api/afx/overview">
+    Audio effects documentation
+  </Card>
+</CardGroup>

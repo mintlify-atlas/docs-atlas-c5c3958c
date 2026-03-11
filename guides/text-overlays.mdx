@@ -1,0 +1,494 @@
+---
+title: Text Overlays
+description: Add styled text, titles, and captions to your videos using TextClip and pictex
+---
+
+## Overview
+
+MovieLite's `TextClip` uses the [pictex](https://github.com/pictex) library to render beautiful, styled text overlays. This guide covers everything from simple text to complex animated titles with gradients, shadows, and custom styling.
+
+## Basic Text Overlay
+
+### Simple Text
+
+Create a basic text overlay with default styling:
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("input.mp4")
+
+# Create simple text with default styling
+canvas = Canvas().font_size(60).color("white").background_color("transparent")
+text = TextClip("Hello World", start=0, duration=5, canvas=canvas)
+text.set_position((video.size[0] // 2 - text.size[0] // 2, 100))
+
+writer = VideoWriter("output_simple_text.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+
+video.close()
+```
+
+<Info>
+  TextClip automatically calculates its size based on the text content and canvas styling. Access the dimensions via `text.size` to position it correctly.
+</Info>
+
+## Styling Text with Pictex Canvas
+
+### Canvas Configuration
+
+The `Canvas` object from pictex provides extensive styling options:
+
+```python
+from pictex import Canvas, LinearGradient, Shadow
+
+canvas = (
+    Canvas()
+    .font_family("Arial")
+    .font_size(80)
+    .color("white")
+    .padding(30)
+    .background_color(LinearGradient(["#FF6B6B", "#4ECDC4"]))
+    .border_radius(15)
+    .text_shadows(Shadow(offset=(3, 3), blur_radius=5, color="black"))
+)
+```
+
+<Steps>
+  <Step title="Font properties">
+    Set font family, size, and color using `.font_family()`, `.font_size()`, and `.color()`
+  </Step>
+  <Step title="Background styling">
+    Add solid colors or gradients with `.background_color()` and style with `.padding()` and `.border_radius()`
+  </Step>
+  <Step title="Effects">
+    Apply shadows and other effects using `.text_shadows()`
+  </Step>
+</Steps>
+
+### Gradient Text Backgrounds
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas, LinearGradient, Shadow
+
+video = VideoClip("input.mp4")
+
+canvas = (
+    Canvas()
+    .font_family("Arial")
+    .font_size(80)
+    .color("white")
+    .padding(30)
+    .background_color(LinearGradient(["#FF6B6B", "#4ECDC4"]))
+    .border_radius(15)
+    .text_shadows(Shadow(offset=(3, 3), blur_radius=5, color="black"))
+)
+
+text = TextClip("Styled Title", start=0, duration=5, canvas=canvas)
+text.set_position((video.size[0] // 2 - text.size[0] // 2, 200))
+
+writer = VideoWriter("output_styled_text.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+
+video.close()
+```
+
+### Text Shadow Effects
+
+Add depth to your text with shadows:
+
+```python
+from pictex import Canvas, Shadow
+
+# Single shadow
+canvas = (
+    Canvas()
+    .font_size(70)
+    .color("white")
+    .background_color("transparent")
+    .text_shadows(Shadow(offset=(2, 2), blur_radius=3, color="black"))
+)
+
+# Multiple shadows for a glow effect
+canvas = (
+    Canvas()
+    .font_size(70)
+    .color("white")
+    .background_color("transparent")
+    .text_shadows([
+        Shadow(offset=(0, 0), blur_radius=10, color="#FF6B6B"),
+        Shadow(offset=(2, 2), blur_radius=5, color="black")
+    ])
+)
+```
+
+## Text Animations
+
+### Fade In/Out
+
+Combine TextClip with visual effects:
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter, vfx
+from pictex import Canvas
+
+video = VideoClip("input.mp4")
+
+canvas = Canvas().font_size(70).color("white").background_color("transparent")
+text = TextClip("Fading Text", start=2, duration=4, canvas=canvas)
+text.set_position((video.size[0] // 2 - text.size[0] // 2, 300))
+
+# Add fade effects
+text.add_effect(vfx.FadeIn(1.0))
+text.add_effect(vfx.FadeOut(1.0))
+
+writer = VideoWriter("output_fade_text.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+
+video.close()
+```
+
+### Sliding Text
+
+Animate position over time:
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("input.mp4")
+
+canvas = Canvas().font_size(60).color("white").padding(20).background_color("#333333")
+text = TextClip("Sliding Text", start=0, duration=5, canvas=canvas)
+
+# Slide in from left over 2 seconds
+def animated_position(t):
+    if t < 2.0:
+        # Slide in from left
+        x = int(-text.size[0] + (text.size[0] + video.size[0] // 2) * (t / 2.0))
+    else:
+        # Stay centered
+        x = video.size[0] // 2 - text.size[0] // 2
+    
+    y = video.size[1] // 2 - text.size[1] // 2
+    return (x, y)
+
+text.set_position(animated_position)
+
+writer = VideoWriter("output_animated_pos.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+
+video.close()
+```
+
+### Bouncing Text
+
+Create physics-inspired animations:
+
+```python
+import math
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("input.mp4")
+
+canvas = Canvas().font_size(80).color("#FFD700").background_color("transparent")
+text = TextClip("Bounce!", start=0, duration=6, canvas=canvas)
+
+# Bounce effect with decreasing amplitude
+def bounce_position(t):
+    x = video.size[0] // 2 - text.size[0] // 2
+    
+    # Bounce amplitude decreases over time
+    amplitude = 200 * (1.0 - t / 6.0)
+    frequency = 3.0
+    y = int(video.size[1] // 2 - text.size[1] // 2 - 
+            abs(math.sin(t * frequency * math.pi)) * amplitude)
+    
+    return (x, y)
+
+text.set_position(bounce_position)
+
+writer = VideoWriter("output_bounce.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+
+video.close()
+```
+
+### Zoom Text
+
+Scale text dynamically:
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("input.mp4")
+
+canvas = Canvas().font_size(70).color("white").background_color("transparent")
+text = TextClip("ZOOM IN", start=0, duration=3, canvas=canvas)
+text.set_position((
+    video.size[0] // 2 - text.size[0] // 2,
+    video.size[1] // 2 - text.size[1] // 2
+))
+
+# Zoom from 0.5x to 1.5x over 3 seconds
+text.set_scale(lambda t: 0.5 + (1.0 * (t / 3.0)))
+
+writer = VideoWriter("output_zoom_text.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+
+video.close()
+```
+
+## Multiple Text Layers
+
+### Titles and Subtitles
+
+Layer multiple text elements with different timings:
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter, vfx
+from pictex import Canvas, LinearGradient
+
+video = VideoClip("input.mp4")
+
+# Title (appears first)
+canvas1 = Canvas().font_size(90).color("white").background_color(
+    LinearGradient(["#FF6B6B", "#FF8E53"])
+)
+title = TextClip("Title", start=0, duration=3, canvas=canvas1)
+title.set_position((video.size[0] // 2 - title.size[0] // 2, 100))
+title.add_effect(vfx.FadeIn(0.5))
+title.add_effect(vfx.FadeOut(0.5))
+
+# Subtitle (appears after title)
+canvas2 = Canvas().font_size(50).color("#CCCCCC").background_color("transparent")
+subtitle = TextClip("Subtitle text here", start=1, duration=4, canvas=canvas2)
+subtitle.set_position((video.size[0] // 2 - subtitle.size[0] // 2, 220))
+subtitle.add_effect(vfx.FadeIn(0.5))
+subtitle.add_effect(vfx.FadeOut(0.5))
+
+# Caption (appears last)
+canvas3 = Canvas().font_size(40).color("yellow").background_color("transparent")
+caption = TextClip("Additional info", start=2.5, duration=3, canvas=canvas3)
+caption.set_position((video.size[0] // 2 - caption.size[0] // 2, video.size[1] - 100))
+caption.add_effect(vfx.FadeIn(0.3))
+caption.add_effect(vfx.FadeOut(0.3))
+
+writer = VideoWriter("output_multi_text.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, title, subtitle, caption])
+writer.write()
+
+video.close()
+```
+
+## Professional Templates
+
+### Lower Third
+
+Create professional name/title overlays:
+
+```python
+from movielite import VideoClip, ImageClip, TextClip, VideoWriter, vfx
+from pictex import Canvas
+
+video = VideoClip("input.mp4")
+
+# Background bar
+bar = ImageClip.from_color(
+    color=(0, 0, 0, 200),  # Semi-transparent black
+    size=(video.size[0], 120),
+    duration=5
+)
+bar.set_position((0, video.size[1] - 120))
+bar.add_effect(vfx.FadeIn(0.5))
+bar.add_effect(vfx.FadeOut(0.5))
+
+# Name text
+canvas_name = Canvas().font_size(50).color("white").background_color("transparent")
+name = TextClip("John Doe", start=0, duration=5, canvas=canvas_name)
+name.set_position((40, video.size[1] - 100))
+name.add_effect(vfx.FadeIn(0.5))
+name.add_effect(vfx.FadeOut(0.5))
+
+# Title text
+canvas_title = Canvas().font_size(30).color("#AAAAAA").background_color("transparent")
+job_title = TextClip("Software Engineer", start=0, duration=5, canvas=canvas_title)
+job_title.set_position((40, video.size[1] - 50))
+job_title.add_effect(vfx.FadeIn(0.5))
+job_title.add_effect(vfx.FadeOut(0.5))
+
+writer = VideoWriter("output_lower_third.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, bar, name, job_title])
+writer.write()
+
+video.close()
+```
+
+<Tip>
+  Lower thirds are most effective when they appear briefly (3-5 seconds) and use subtle fade in/out animations.
+</Tip>
+
+## Advanced Gradient Backgrounds
+
+### Full Screen Gradient with Text
+
+```python
+from movielite import ImageClip, TextClip, VideoWriter
+from pictex import Canvas, LinearGradient, Column, Text
+
+WIDTH = 1920
+HEIGHT = 1080
+
+# Create gradient background
+canvas_bg = (
+    Canvas()
+    .background_color(
+        LinearGradient(
+            colors=["#ff0000", "#0000ff"],
+            start_point=(0.0, 0.0),  # top-left corner
+            end_point=(1.0, 1.0)      # bottom-right corner
+        )
+    )
+    .size(WIDTH, HEIGHT)
+)
+
+background_clip = (
+    ImageClip(canvas_bg.render().to_numpy())
+    .set_duration(10)
+)
+
+# Add text overlay
+canvas_text = Canvas().font_size(80).color("white").background_color("transparent")
+text = TextClip("Beautiful Gradient", start=0, duration=10, canvas=canvas_text)
+text.set_position((WIDTH // 2 - text.size[0] // 2, HEIGHT // 2 - text.size[1] // 2))
+
+writer = VideoWriter("output.mp4", fps=30)
+writer.add_clip(background_clip)
+writer.add_clip(text)
+writer.write()
+```
+
+### Pictex Layouts
+
+Use Pictex's layout components for complex text arrangements:
+
+```python
+from movielite import ImageClip, VideoWriter
+from pictex import Canvas, Column, Text
+
+WIDTH = 1920
+HEIGHT = 1080
+
+# Create background canvas
+canvas = (
+    Canvas()
+    .background_color("white")
+    .size(WIDTH, HEIGHT)
+)
+
+# Create column with multiple text elements
+column = (
+    Column(
+        Text("Hello, world!").font_size(50).color("blue"),
+        Text("This will be the bottom text.").font_size(30).color("green")
+    )
+    .gap(20)
+    .align_items("center")
+    .background_color("lightgray")
+    .place("center", "center")
+)
+
+# Render to ImageClip
+background_clip = (
+    ImageClip(canvas.render(column).to_numpy())
+    .set_duration(10)
+)
+
+writer = VideoWriter("output.mp4", fps=30)
+writer.add_clip(background_clip)
+writer.write()
+```
+
+## Centering Text
+
+### Horizontal Centering
+
+```python
+# Center horizontally
+text.set_position((video.size[0] // 2 - text.size[0] // 2, 100))
+```
+
+### Vertical Centering
+
+```python
+# Center vertically
+text.set_position((100, video.size[1] // 2 - text.size[1] // 2))
+```
+
+### Center Both Axes
+
+```python
+# Center both horizontally and vertically
+text.set_position((
+    video.size[0] // 2 - text.size[0] // 2,
+    video.size[1] // 2 - text.size[1] // 2
+))
+```
+
+## Best Practices
+
+<Card title="Readability" icon="eye">
+  Use high contrast between text and background. White text on dark backgrounds (or vice versa) works best. Add shadows for better separation.
+</Card>
+
+<Card title="Font Size" icon="text-size">
+  For 1080p videos, use font sizes between 40-80px for body text and 80-120px for titles. Test on the target display size.
+</Card>
+
+<Card title="Duration" icon="clock">
+  Give viewers enough time to read text. A rule of thumb is 3 seconds minimum, plus 1 second per 10 words.
+</Card>
+
+<Card title="Animation Timing" icon="gauge">
+  Keep fade in/out animations short (0.3-0.5s). Longer animations can feel sluggish.
+</Card>
+
+## Common Patterns
+
+<CodeGroup>
+```python Simple Caption
+canvas = Canvas().font_size(40).color("white").background_color("transparent")
+text = TextClip("Caption", start=0, duration=3, canvas=canvas)
+text.set_position((50, video.size[1] - 100))
+```
+
+```python Title Card
+canvas = Canvas().font_size(90).color("white").padding(40).background_color("#2C3E50")
+title = TextClip("Chapter 1", start=0, duration=2, canvas=canvas)
+title.set_position((video.size[0] // 2 - title.size[0] // 2, video.size[1] // 2 - title.size[1] // 2))
+title.add_effect(vfx.FadeIn(0.5)).add_effect(vfx.FadeOut(0.5))
+```
+
+```python Watermark
+canvas = Canvas().font_size(20).color("white").background_color("transparent")
+watermark = TextClip("© 2026", start=0, duration=video.duration, canvas=canvas)
+watermark.set_position((video.size[0] - 100, 20))
+watermark.set_opacity(0.5)
+```
+</CodeGroup>
+
+## Next Steps
+
+- Apply [Transitions](/guides/transitions) between text and video
+- Use [Masking](/guides/masking) to create text reveal effects
+- Combine text with [Custom Effects](/guides/custom-effects)

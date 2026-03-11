@@ -1,0 +1,570 @@
+---
+title: 'Contributing'
+description: 'Guide for contributing to MovieLite - development setup, testing, and code style'
+icon: 'code-pull-request'
+---
+
+Thank you for your interest in contributing to MovieLite! This guide will help you get started with development, testing, and submitting contributions.
+
+## Getting Started
+
+MovieLite is an open-source Python video editing library focused on speed and simplicity. Contributions are highly welcome!
+
+<CardGroup cols={2}>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/francozanardi/movielite">
+    View source code and open issues
+  </Card>
+  
+  <Card title="Issue Tracker" icon="bug" href="https://github.com/francozanardi/movielite/issues">
+    Report bugs and request features
+  </Card>
+</CardGroup>
+
+## Ways to Contribute
+
+<AccordionGroup>
+  <Accordion title="Report Bugs" icon="bug">
+    Found a bug? Please open an issue with:
+    - Clear description of the problem
+    - Steps to reproduce
+    - Expected vs actual behavior
+    - Your environment (OS, Python version, MovieLite version)
+    - Minimal code example if possible
+  </Accordion>
+  
+  <Accordion title="Suggest Features" icon="lightbulb">
+    Have an idea for a new feature?
+    - Check existing issues first to avoid duplicates
+    - Describe the feature and its use case
+    - Explain how it fits with MovieLite's philosophy
+    - Consider implementation approach
+  </Accordion>
+  
+  <Accordion title="Improve Documentation" icon="book">
+    Documentation improvements are always appreciated:
+    - Fix typos and clarify explanations
+    - Add examples and tutorials
+    - Improve API documentation
+    - Translate documentation
+  </Accordion>
+  
+  <Accordion title="Submit Code" icon="code">
+    Code contributions can include:
+    - Bug fixes
+    - New features
+    - Performance improvements
+    - New effects or transitions
+    - Test coverage improvements
+  </Accordion>
+</AccordionGroup>
+
+## Development Setup
+
+### Prerequisites
+
+<Steps>
+  <Step title="Install Python">
+    MovieLite requires **Python 3.10 or higher**:
+    
+    ```bash
+    python --version  # Should be 3.10+
+    ```
+  </Step>
+  
+  <Step title="Install FFmpeg">
+    FFmpeg must be installed and available in your PATH:
+    
+    **macOS**:
+    ```bash
+    brew install ffmpeg
+    ```
+    
+    **Ubuntu/Debian**:
+    ```bash
+    sudo apt-get install ffmpeg
+    ```
+    
+    **Windows**:
+    Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH.
+  </Step>
+  
+  <Step title="Install Git">
+    ```bash
+    git --version  # Verify git is installed
+    ```
+  </Step>
+</Steps>
+
+### Setting Up the Development Environment
+
+<Steps>
+  <Step title="Fork and clone the repository">
+    ```bash
+    # Fork the repository on GitHub, then:
+    git clone https://github.com/YOUR_USERNAME/movielite.git
+    cd movielite
+    ```
+  </Step>
+  
+  <Step title="Create a virtual environment">
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+    ```
+  </Step>
+  
+  <Step title="Install in development mode">
+    ```bash
+    # Install package in editable mode with test dependencies
+    pip install -e ".[test]"
+    ```
+    
+    This installs:
+    - MovieLite in editable mode (changes reflect immediately)
+    - All runtime dependencies (numpy, numba, opencv, etc.)
+    - Test dependencies (pytest, pytest-cov)
+  </Step>
+  
+  <Step title="Verify installation">
+    ```bash
+    python -c "import movielite; print(movielite.__version__)"
+    ```
+  </Step>
+</Steps>
+
+### Project Structure
+
+```
+movielite/
+├── src/movielite/          # Main source code
+│   ├── __init__.py         # Package initialization
+│   ├── core/               # Core classes (VideoWriter, MediaClip, etc.)
+│   ├── video/              # VideoClip, AlphaVideoClip
+│   ├── image/              # ImageClip, TextClip
+│   ├── audio/              # AudioClip
+│   ├── vfx/                # Visual effects
+│   ├── afx/                # Audio effects
+│   ├── vtx/                # Transitions
+│   ├── composite/          # CompositeClip classes
+│   ├── enums.py            # Enumerations (VideoQuality, etc.)
+│   └── logger.py           # Logging utilities
+├── tests/                  # Test suite
+├── examples/               # Example scripts
+├── benchmarks/             # Performance benchmarks
+├── docs/                   # Documentation
+├── pyproject.toml          # Project metadata and dependencies
+├── README.md               # Project readme
+├── CHANGELOG.md            # Version history
+└── LICENSE                 # MIT License
+```
+
+## Development Workflow
+
+### Creating a New Branch
+
+```bash
+# Update your fork
+git checkout main
+git pull upstream main
+
+# Create a feature branch
+git checkout -b feature/your-feature-name
+# or for bug fixes
+git checkout -b fix/issue-description
+```
+
+### Making Changes
+
+<Steps>
+  <Step title="Write your code">
+    Make your changes following the code style guidelines below.
+  </Step>
+  
+  <Step title="Add tests">
+    Add tests for new functionality in the `tests/` directory:
+    
+    ```python
+    # tests/test_your_feature.py
+    import pytest
+    from movielite import VideoClip
+    
+    def test_your_feature():
+        clip = VideoClip("test_video.mp4")
+        # Test your feature
+        assert clip.some_property == expected_value
+    ```
+  </Step>
+  
+  <Step title="Run tests">
+    ```bash
+    pytest tests/
+    ```
+  </Step>
+  
+  <Step title="Update documentation">
+    Update relevant documentation in `docs/` or docstrings in code.
+  </Step>
+</Steps>
+
+### Testing
+
+<Tabs>
+  <Tab title="Running Tests">
+    ```bash
+    # Run all tests
+    pytest tests/
+    
+    # Run specific test file
+    pytest tests/test_basic_functionality.py
+    
+    # Run with verbose output
+    pytest -v tests/
+    
+    # Run with coverage report
+    pytest --cov=movielite --cov-report=html tests/
+    ```
+  </Tab>
+  
+  <Tab title="Writing Tests">
+    Guidelines for writing tests:
+    
+    - Use pytest framework
+    - Test both success and failure cases
+    - Use descriptive test names: `test_videoclip_subclip_preserves_transforms()`
+    - Keep tests focused and independent
+    - Use fixtures for common setup
+    - Mock external dependencies when appropriate
+    
+    Example:
+    ```python
+    import pytest
+    from movielite import VideoClip, VideoWriter
+    
+    def test_video_clip_loads_successfully():
+        clip = VideoClip("test_assets/video.mp4")
+        assert clip.fps > 0
+        assert clip.size[0] > 0
+        assert clip.duration > 0
+        clip.close()
+    
+    def test_subclip_invalid_range_raises_error():
+        clip = VideoClip("test_assets/video.mp4")
+        with pytest.raises(ValueError):
+            clip.subclip(10, 5)  # End before start
+        clip.close()
+    ```
+  </Tab>
+  
+  <Tab title="Test Assets">
+    For tests requiring video/audio files:
+    
+    - Keep test assets small (less than 1MB)
+    - Use short duration videos (1-3 seconds)
+    - Consider generating test assets programmatically
+    - Document required test assets in test docstrings
+  </Tab>
+</Tabs>
+
+## Code Style Guidelines
+
+### Python Code Style
+
+MovieLite follows PEP 8 with some specific conventions:
+
+<AccordionGroup>
+  <Accordion title="General Style" icon="code">
+    - Use 4 spaces for indentation (no tabs)
+    - Maximum line length: 88 characters (Black formatter default)
+    - Use descriptive variable names
+    - Add docstrings to all public functions and classes
+    - Type hints are encouraged but not required
+  </Accordion>
+  
+  <Accordion title="Naming Conventions" icon="tag">
+    - **Classes**: `PascalCase` (e.g., `VideoClip`, `FadeIn`)
+    - **Functions/methods**: `snake_case` (e.g., `set_position`, `get_frame`)
+    - **Constants**: `UPPER_SNAKE_CASE` (e.g., `DEFAULT_FPS`)
+    - **Private members**: Prefix with `_` (e.g., `_internal_buffer`)
+  </Accordion>
+  
+  <Accordion title="Imports" icon="file-import">
+    Order imports as follows:
+    
+    ```python
+    # Standard library
+    import os
+    from typing import Optional, Tuple
+    
+    # Third-party
+    import numpy as np
+    import cv2
+    from numba import jit
+    
+    # Local
+    from movielite.core import MediaClip
+    from movielite.vfx.base import GraphicEffect
+    ```
+  </Accordion>
+  
+  <Accordion title="Docstrings" icon="file-lines">
+    Use Google-style docstrings:
+    
+    ```python
+    def set_position(self, value: Union[Callable[[float], Tuple[int, int]], Tuple[int, int]]) -> Self:
+        """Set the position of the clip.
+        
+        Args:
+            value: Either a tuple (x, y) or a function that takes time and returns (x, y)
+        
+        Returns:
+            Self for method chaining
+        
+        Example:
+            >>> clip.set_position((100, 100))
+            >>> clip.set_position(lambda t: (int(100 + t * 50), 100))
+        """
+        # Implementation
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Performance Considerations
+
+<Warning>
+MovieLite is performance-focused. Keep these principles in mind:
+</Warning>
+
+- **Use Numba JIT** for pixel-level operations:
+  ```python
+  @numba.jit(nopython=True, cache=True)
+  def process_pixels(frame: np.ndarray) -> np.ndarray:
+      # Pixel processing at native speed
+      pass
+  ```
+
+- **Minimize memory allocations** in hot loops
+- **Prefer in-place operations** when safe
+- **Profile before optimizing** - measure impact
+- **Document performance characteristics** in docstrings
+
+### Adding New Effects
+
+When adding a new visual effect:
+
+<Steps>
+  <Step title="Create effect class">
+    Create a new file in `src/movielite/vfx/`:
+    
+    ```python
+    # src/movielite/vfx/my_effect.py
+    from movielite.vfx.base import GraphicEffect
+    import numpy as np
+    
+    class MyEffect(GraphicEffect):
+        """Description of what this effect does.
+        
+        Args:
+            parameter: Description of parameter
+        
+        Example:
+            >>> clip.add_effect(vfx.MyEffect(parameter=value))
+        """
+        
+        def __init__(self, parameter: float):
+            self.parameter = parameter
+        
+        def apply(self, frame: np.ndarray, t: float, clip_duration: float) -> np.ndarray:
+            """Apply the effect to a frame.
+            
+            Args:
+                frame: Input frame (BGR or BGRA format, uint8)
+                t: Current time in seconds
+                clip_duration: Total clip duration
+            
+            Returns:
+                Transformed frame (same format as input)
+            """
+            # Implementation
+            return modified_frame
+    ```
+  </Step>
+  
+  <Step title="Register in __init__.py">
+    Add to `src/movielite/vfx/__init__.py`:
+    
+    ```python
+    from .my_effect import MyEffect
+    
+    __all__ = [
+        # ... existing effects
+        "MyEffect",
+    ]
+    ```
+  </Step>
+  
+  <Step title="Add tests">
+    Create tests in `tests/test_vfx.py`:
+    
+    ```python
+    def test_my_effect():
+        clip = VideoClip("test_video.mp4")
+        clip.add_effect(vfx.MyEffect(parameter=1.0))
+        # Test that effect works
+        clip.close()
+    ```
+  </Step>
+  
+  <Step title="Document the effect">
+    Add documentation in `docs/api.md` and update examples.
+  </Step>
+</Steps>
+
+## Submitting Your Contribution
+
+### Commit Guidelines
+
+<Steps>
+  <Step title="Write clear commit messages">
+    Follow conventional commit format:
+    
+    ```
+    type(scope): subject
+    
+    body (optional)
+    
+    footer (optional)
+    ```
+    
+    Types:
+    - `feat`: New feature
+    - `fix`: Bug fix
+    - `docs`: Documentation changes
+    - `perf`: Performance improvement
+    - `refactor`: Code refactoring
+    - `test`: Adding tests
+    - `chore`: Maintenance tasks
+    
+    Examples:
+    ```bash
+    git commit -m "feat(vfx): add chromatic aberration effect"
+    git commit -m "fix(video): correct subclip alpha channel handling"
+    git commit -m "docs(api): improve TextClip documentation"
+    ```
+  </Step>
+  
+  <Step title="Keep commits focused">
+    - One logical change per commit
+    - Commit working code (tests pass)
+    - Avoid mixing unrelated changes
+  </Step>
+  
+  <Step title="Push your branch">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+</Steps>
+
+### Creating a Pull Request
+
+<Steps>
+  <Step title="Open a pull request">
+    Go to the MovieLite repository on GitHub and create a pull request from your fork.
+  </Step>
+  
+  <Step title="Fill out the PR template">
+    Include:
+    - **Description**: What does this PR do?
+    - **Motivation**: Why is this change needed?
+    - **Type**: Bug fix, new feature, performance, docs, etc.
+    - **Testing**: How was this tested?
+    - **Breaking changes**: Any backwards-incompatible changes?
+    - **Related issues**: Link to related issues
+  </Step>
+  
+  <Step title="Ensure CI passes">
+    GitHub Actions will run tests automatically. Fix any failures.
+  </Step>
+  
+  <Step title="Respond to feedback">
+    Maintainers may request changes. Address feedback promptly and push updates.
+  </Step>
+  
+  <Step title="Merge">
+    Once approved, a maintainer will merge your PR. Congratulations! 🎉
+  </Step>
+</Steps>
+
+### Pull Request Checklist
+
+<Note>
+Before submitting, verify:
+</Note>
+
+- [ ] Code follows style guidelines
+- [ ] Tests added for new functionality
+- [ ] All tests pass locally
+- [ ] Documentation updated (if needed)
+- [ ] CHANGELOG.md updated (for significant changes)
+- [ ] Commit messages are clear and descriptive
+- [ ] No merge conflicts with main branch
+
+## Development Roadmap
+
+Interested in contributing but not sure where to start? Check out these priority areas:
+
+<CardGroup cols={2}>
+  <Card title="GPU Acceleration" icon="gpu">
+    Add optional GPU support using CuPy or PyTorch for transformations and blending.
+  </Card>
+  
+  <Card title="More Output Formats" icon="file-video">
+    Expand codec and container support beyond MP4/H.264.
+  </Card>
+  
+  <Card title="Smart Caching" icon="database">
+    Implement intelligent caching of static content to avoid redundant rendering.
+  </Card>
+  
+  <Card title="Enhanced API" icon="code">
+    Add convenience features like string-based positioning and deep copy support.
+  </Card>
+  
+  <Card title="More Effects" icon="wand-magic-sparkles">
+    Expand the effects library with new visual and audio effects.
+  </Card>
+  
+  <Card title="Better Type Hints" icon="code">
+    Improve type hinting throughout the codebase for better IDE support.
+  </Card>
+</CardGroup>
+
+## Communication
+
+- **GitHub Issues**: For bug reports and feature requests
+- **GitHub Discussions**: For questions and general discussion
+- **Pull Requests**: For code review and collaboration
+
+## Code of Conduct
+
+Be respectful and constructive:
+
+- Welcome newcomers and help them get started
+- Provide constructive feedback on PRs
+- Be patient with questions
+- Respect different viewpoints and experiences
+- Focus on what's best for the community
+
+## License
+
+By contributing to MovieLite, you agree that your contributions will be licensed under the [MIT License](https://github.com/francozanardi/movielite/blob/main/LICENSE).
+
+## Questions?
+
+If you have questions about contributing:
+
+1. Check existing documentation
+2. Search GitHub issues for similar questions
+3. Open a new issue with the `question` label
+
+Thank you for contributing to MovieLite! 🎬

@@ -1,0 +1,576 @@
+---
+title: Custom Effects
+description: Create your own frame transformations and visual effects
+---
+
+## Overview
+
+MovieLite's flexible API allows you to create custom effects beyond the built-in `vfx` module. You can apply transformations at different levels: pixel-level, frame-level, or by creating reusable effect classes.
+
+## Frame Transformations
+
+### Using add_transform()
+
+The simplest way to create custom effects is with `add_transform()`, which applies a function to each frame:
+
+```python
+import cv2
+import numpy as np
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("video.mp4")
+
+# Custom sepia effect
+def sepia_transform(frame: np.ndarray, t: float) -> np.ndarray:
+    kernel = np.array([
+        [0.131, 0.534, 0.272],
+        [0.168, 0.686, 0.349],
+        [0.189, 0.769, 0.393]
+    ])
+    sepia = cv2.transform(frame, kernel)
+    return np.clip(sepia, 0, 255).astype(np.uint8)
+
+clip.add_transform(sepia_transform)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+<Info>
+  The transform function receives:
+  - `frame`: NumPy array in BGR format (uint8)
+  - `t`: Relative time within the clip (0 to duration)
+  
+  It must return a frame in the same BGR/BGRA uint8 format.
+</Info>
+
+### Time-Based Effects
+
+Use the time parameter for animated effects:
+
+```python
+import numpy as np
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("video.mp4")
+
+# Increasing brightness over time
+def time_brightness(frame: np.ndarray, t: float) -> np.ndarray:
+    # Increase brightness from 1.0x to 1.5x over clip duration
+    factor = 1.0 + 0.5 * (t / clip.duration)
+    brightened = (frame * factor).clip(0, 255).astype(np.uint8)
+    return brightened
+
+clip.add_transform(time_brightness)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Chaining Multiple Transforms
+
+Transforms are applied in the order they're added:
+
+```python
+from movielite import VideoClip, VideoWriter
+import cv2
+import numpy as np
+
+clip = VideoClip("video.mp4")
+
+# First transform: Grayscale
+def grayscale(frame, t):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+# Second transform: Increase contrast
+def high_contrast(frame, t):
+    alpha = 1.5  # Contrast
+    beta = -50   # Brightness offset
+    return cv2.convertScaleAbs(frame, alpha=alpha, beta=beta)
+
+# Apply both
+clip.add_transform(grayscale)
+clip.add_transform(high_contrast)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+<Steps>
+  <Step title="First transform">
+    Converts to grayscale
+  </Step>
+  <Step title="Second transform">
+    Applies high contrast to the grayscale result
+  </Step>
+  <Step title="Rendering">
+    Both transformations are applied to every frame during rendering
+  </Step>
+</Steps>
+
+## Pixel-Level Transformations
+
+### Using add_pixel_transform()
+
+For color adjustments, pixel-level transforms are more efficient than frame transforms. They use Numba JIT compilation for near-native performance:
+
+```python
+import numba
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("video.mp4")
+
+# Numba-compiled pixel transform
+@numba.njit
+def increase_red(b, g, r, a, t):
+    """Boost red channel by 30%"""
+    new_r = min(255, int(r * 1.3))
+    return (b, g, new_r)
+
+clip.add_pixel_transform(increase_red)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+<Warning>
+  Pixel transforms must be decorated with `@numba.njit` and follow this signature:
+  
+  ```python
+  @numba.njit
+  def transform(b: int, g: int, r: int, a: int, t: float) -> Tuple[int, int, int]:
+      # Return (b, g, r) - don't return alpha
+      ...
+  ```
+</Warning>
+
+### Pixel Transform Examples
+
+<CodeGroup>
+```python Brightness
+@numba.njit
+def brightness(b, g, r, a, t):
+    factor = 1.3
+    return (
+        min(255, int(b * factor)),
+        min(255, int(g * factor)),
+        min(255, int(r * factor))
+    )
+```
+
+```python Color Tint
+@numba.njit
+def blue_tint(b, g, r, a, t):
+    # Add blue tint
+    return (
+        min(255, b + 50),
+        g,
+        r
+    )
+```
+
+```python Invert Colors
+@numba.njit
+def invert(b, g, r, a, t):
+    return (255 - b, 255 - g, 255 - r)
+```
+
+```python Time-Based Color Shift
+@numba.njit
+def color_shift(b, g, r, a, t):
+    # Shift towards red over time
+    factor = t / 10.0  # Assuming 10s clip
+    new_r = min(255, int(r * (1.0 + factor * 0.5)))
+    return (b, g, new_r)
+```
+</CodeGroup>
+
+## Creating Reusable Effects
+
+### Custom Effect Classes
+
+Create reusable effects by extending the `GraphicEffect` base class:
+
+```python
+from movielite.vfx.base import GraphicEffect
+from movielite.core import GraphicClip
+import cv2
+import numpy as np
+
+class EdgeDetect(GraphicEffect):
+    """Apply Canny edge detection effect"""
+    
+    def __init__(self, threshold1: int = 100, threshold2: int = 200):
+        """
+        Args:
+            threshold1: First threshold for hysteresis procedure
+            threshold2: Second threshold for hysteresis procedure
+        """
+        self.threshold1 = threshold1
+        self.threshold2 = threshold2
+    
+    def apply(self, clip: GraphicClip) -> None:
+        """Apply edge detection effect to clip"""
+        def edge_transform(frame: np.ndarray, t: float) -> np.ndarray:
+            # Convert to grayscale
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            
+            # Apply Canny edge detection
+            edges = cv2.Canny(gray, self.threshold1, self.threshold2)
+            
+            # Convert back to BGR
+            edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+            return edges_bgr
+        
+        clip.add_transform(edge_transform)
+```
+
+Usage:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("video.mp4")
+
+# Apply custom effect
+clip.add_effect(EdgeDetect(threshold1=50, threshold2=150))
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Parameterized Effects
+
+Create effects with adjustable parameters:
+
+```python
+from movielite.vfx.base import GraphicEffect
+from movielite.core import GraphicClip
+import cv2
+import numpy as np
+
+class CustomVignette(GraphicEffect):
+    """Vignette effect with customizable falloff"""
+    
+    def __init__(self, intensity: float = 0.5, radius: float = 0.7, feather: float = 0.3):
+        """
+        Args:
+            intensity: Darkening intensity (0-1)
+            radius: Vignette radius as fraction of image size (0-1)
+            feather: Falloff smoothness (0-1)
+        """
+        self.intensity = intensity
+        self.radius = radius
+        self.feather = feather
+    
+    def apply(self, clip: GraphicClip) -> None:
+        # Cache the vignette mask
+        vignette_mask = None
+        
+        def vignette_transform(frame: np.ndarray, t: float) -> np.ndarray:
+            nonlocal vignette_mask
+            
+            # Create mask on first frame
+            if vignette_mask is None:
+                h, w = frame.shape[:2]
+                y, x = np.ogrid[:h, :w]
+                center_y, center_x = h / 2, w / 2
+                
+                # Calculate distance from center
+                distance = np.sqrt((x - center_x)**2 + (y - center_y)**2)
+                max_distance = np.sqrt(center_x**2 + center_y**2)
+                
+                # Normalize distance
+                norm_distance = distance / max_distance
+                
+                # Create vignette
+                vignette = 1 - np.clip(
+                    (norm_distance - self.radius) / self.feather,
+                    0, 1
+                ) * self.intensity
+                
+                vignette_mask = vignette[:, :, np.newaxis]
+            
+            # Apply vignette
+            result = (frame * vignette_mask).astype(np.uint8)
+            return result
+        
+        clip.add_transform(vignette_transform)
+```
+
+## Advanced Effect Examples
+
+### Chromatic Aberration
+
+```python
+import cv2
+import numpy as np
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("video.mp4")
+
+def chromatic_aberration(frame: np.ndarray, t: float, shift: int = 5) -> np.ndarray:
+    """Split and shift color channels for chromatic aberration effect"""
+    h, w = frame.shape[:2]
+    
+    # Split channels
+    b, g, r = cv2.split(frame)
+    
+    # Shift red channel right
+    M_r = np.float32([[1, 0, shift], [0, 1, 0]])
+    r_shifted = cv2.warpAffine(r, M_r, (w, h))
+    
+    # Shift blue channel left
+    M_b = np.float32([[1, 0, -shift], [0, 1, 0]])
+    b_shifted = cv2.warpAffine(b, M_b, (w, h))
+    
+    # Merge channels
+    result = cv2.merge([b_shifted, g, r_shifted])
+    return result
+
+clip.add_transform(chromatic_aberration)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Film Grain
+
+```python
+import numpy as np
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("video.mp4")
+
+def film_grain(frame: np.ndarray, t: float, intensity: float = 25.0) -> np.ndarray:
+    """Add film grain noise"""
+    # Generate random noise
+    noise = np.random.normal(0, intensity, frame.shape).astype(np.int16)
+    
+    # Add noise to frame
+    noisy = frame.astype(np.int16) + noise
+    
+    # Clip to valid range
+    result = np.clip(noisy, 0, 255).astype(np.uint8)
+    return result
+
+clip.add_transform(film_grain)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Color Lookup Table (LUT)
+
+```python
+import cv2
+import numpy as np
+from movielite import VideoClip, VideoWriter
+
+def create_lut_transform(lut_file: str):
+    """Create a transform that applies a 3D LUT"""
+    # Load LUT (assuming .cube format)
+    lut = load_cube_file(lut_file)  # You'd implement this
+    
+    def apply_lut(frame: np.ndarray, t: float) -> np.ndarray:
+        # Apply LUT using OpenCV or custom implementation
+        return cv2.LUT(frame, lut)
+    
+    return apply_lut
+
+clip = VideoClip("video.mp4")
+clip.add_transform(create_lut_transform("cinematic.cube"))
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Glitch Effect
+
+```python
+import numpy as np
+import random
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("video.mp4")
+
+def glitch_effect(frame: np.ndarray, t: float) -> np.ndarray:
+    """Random glitch effect"""
+    h, w = frame.shape[:2]
+    result = frame.copy()
+    
+    # Randomly glitch some horizontal slices
+    if random.random() < 0.3:  # 30% chance per frame
+        num_slices = random.randint(3, 8)
+        
+        for _ in range(num_slices):
+            y1 = random.randint(0, h - 20)
+            y2 = y1 + random.randint(5, 20)
+            
+            # Horizontal shift
+            shift = random.randint(-50, 50)
+            
+            if shift > 0:
+                result[y1:y2, shift:] = frame[y1:y2, :-shift]
+            else:
+                result[y1:y2, :shift] = frame[y1:y2, -shift:]
+            
+            # RGB shift on glitched area
+            if random.random() < 0.5:
+                b, g, r = cv2.split(result[y1:y2, :])
+                offset = random.randint(-5, 5)
+                if offset > 0:
+                    r = np.roll(r, offset, axis=1)
+                else:
+                    b = np.roll(b, -offset, axis=1)
+                result[y1:y2, :] = cv2.merge([b, g, r])
+    
+    return result
+
+clip.add_transform(glitch_effect)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+## Performance Optimization
+
+### Caching Expensive Computations
+
+Cache results that don't change per frame:
+
+```python
+def create_optimized_effect():
+    # Cache expensive computations
+    lookup_table = None
+    
+    def effect_transform(frame: np.ndarray, t: float) -> np.ndarray:
+        nonlocal lookup_table
+        
+        # Build LUT only once
+        if lookup_table is None:
+            lookup_table = build_expensive_lut()
+        
+        # Apply cached LUT
+        return apply_lut(frame, lookup_table)
+    
+    return effect_transform
+
+clip.add_transform(create_optimized_effect())
+```
+
+### Using Numba for Speed
+
+Compile performance-critical code with Numba:
+
+```python
+import numba
+import numpy as np
+from movielite import VideoClip, VideoWriter
+
+@numba.jit(nopython=True)
+def adjust_colors_numba(frame_in, frame_out, factor):
+    """Fast color adjustment using Numba"""
+    h, w = frame_in.shape[:2]
+    
+    for y in range(h):
+        for x in range(w):
+            frame_out[y, x, 0] = min(255, int(frame_in[y, x, 0] * factor))
+            frame_out[y, x, 1] = min(255, int(frame_in[y, x, 1] * factor))
+            frame_out[y, x, 2] = min(255, int(frame_in[y, x, 2] * factor))
+
+clip = VideoClip("video.mp4")
+
+def fast_brightness(frame: np.ndarray, t: float) -> np.ndarray:
+    result = np.empty_like(frame)
+    adjust_colors_numba(frame, result, 1.3)
+    return result
+
+clip.add_transform(fast_brightness)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+## Best Practices
+
+<Card title="Prefer Pixel Transforms" icon="microchip">
+  For color operations, use `add_pixel_transform()` with Numba. It's significantly faster than frame transforms for pixel-wise operations.
+</Card>
+
+<Card title="Cache Expensive Calculations" icon="database">
+  If your effect has time-independent computations, calculate them once and cache the results.
+</Card>
+
+<Card title="Test on Short Clips" icon="clock">
+  Develop and test effects on 2-3 second clips before processing full videos.
+</Card>
+
+<Card title="Use Built-in OpenCV Functions" icon="bolt">
+  OpenCV functions like `cv2.GaussianBlur()`, `cv2.filter2D()`, etc. are highly optimized. Use them when possible.
+</Card>
+
+## Common Patterns
+
+<CodeGroup>
+```python Conditional Effect
+def conditional_effect(frame, t):
+    # Apply effect only during specific time range
+    if 2.0 <= t <= 5.0:
+        return apply_special_effect(frame)
+    return frame
+```
+
+```python Intensity Ramp
+def ramping_effect(frame, t):
+    # Effect intensity increases over time
+    intensity = min(1.0, t / clip.duration)
+    return apply_effect(frame, intensity)
+```
+
+```python Frame Rate Detection
+def every_nth_frame_effect(frame, t):
+    # Apply heavy effect only every 5th frame
+    frame_num = int(t * clip.fps)
+    if frame_num % 5 == 0:
+        return expensive_effect(frame)
+    return frame
+```
+</CodeGroup>
+
+## Next Steps
+
+- Optimize rendering with [Performance Tips](/guides/performance)
+- Combine custom effects with [Transitions](/guides/transitions)
+- Use custom effects with [Masking](/guides/masking) for advanced compositions

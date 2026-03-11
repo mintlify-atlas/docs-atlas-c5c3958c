@@ -1,0 +1,483 @@
+---
+title: 'ImageClip'
+description: 'Display static images in your video compositions'
+---
+
+## Overview
+
+`ImageClip` displays a static image for a specified duration. Images can be loaded from files or created from numpy arrays. The class automatically handles both RGB/RGBA and BGR/BGRA formats.
+
+Defined in: `src/movielite/image/image_clip.py:6`
+
+## Constructor
+
+```python
+ImageClip(source: Union[str, np.ndarray], start: float = 0, duration: float = 5.0)
+```
+
+<ParamField path="source" type="Union[str, np.ndarray]" required>
+  Either a file path (string) or a numpy array (RGB/RGBA or BGR/BGRA format)
+</ParamField>
+
+<ParamField path="start" type="float" default="0">
+  Start time in the composition (seconds)
+</ParamField>
+
+<ParamField path="duration" type="float" default="5.0">
+  How long to display the image (seconds)
+</ParamField>
+
+### Raises
+
+- `FileNotFoundError`: If the image file doesn't exist
+- `ValueError`: If numpy array has invalid shape (must be height × width × channels, with 3 or 4 channels)
+
+### Example
+
+```python
+from movielite import ImageClip
+import numpy as np
+
+# Load from file
+image = ImageClip("photo.png", start=0, duration=5)
+
+# Create from numpy array (RGB)
+array = np.random.randint(0, 255, (720, 1280, 3), dtype=np.uint8)
+image = ImageClip(array, start=2, duration=3)
+
+# Load image with alpha channel
+logo = ImageClip("logo.png", duration=10)  # PNG with transparency
+```
+
+## Class Methods
+
+### from_color
+
+```python
+@classmethod
+from_color(color: tuple, size: tuple, start: float = 0, duration: float = 5.0) -> ImageClip
+```
+
+Create a solid color image clip.
+
+<ParamField path="color" type="tuple" required>
+  RGB or RGBA tuple with values 0-255, e.g., `(255, 0, 0)` for red
+</ParamField>
+
+<ParamField path="size" type="tuple" required>
+  Image dimensions as `(width, height)` in pixels
+</ParamField>
+
+<ParamField path="start" type="float" default="0">
+  Start time in seconds
+</ParamField>
+
+<ParamField path="duration" type="float" default="5.0">
+  Duration in seconds
+</ParamField>
+
+<ResponseField name="return" type="ImageClip">
+  New ImageClip instance with solid color
+</ResponseField>
+
+**Example:**
+```python
+# Solid red background
+red_bg = ImageClip.from_color(
+    color=(255, 0, 0),
+    size=(1920, 1080),
+    duration=10
+)
+
+# Semi-transparent blue overlay
+blue_overlay = ImageClip.from_color(
+    color=(0, 0, 255, 128),  # RGBA with 50% opacity
+    size=(1280, 720),
+    duration=5
+)
+```
+
+Defined in: `src/movielite/image/image_clip.py:70`
+
+## Properties
+
+### Inherited Properties
+
+ImageClip inherits properties from GraphicClip and MediaClip:
+
+- `size` (Tuple[int, int]): Image dimensions (width, height)
+- `start` (float): Start time in the composition
+- `duration` (float): How long the image is displayed
+- `end` (float): End time in the composition
+- `position` (Callable): Position function or static tuple
+- `opacity` (Callable): Opacity function or static value
+- `scale` (Callable): Scale function or static value
+
+## Methods
+
+### set_position
+
+```python
+set_position(value: Union[Callable[[float], Tuple[int, int]], Tuple[int, int]]) -> Self
+```
+
+Set where the image appears on the canvas.
+
+<ParamField path="value" type="Union[Tuple[int, int], Callable]" required>
+  Either a static tuple `(x, y)` or a function that takes time and returns `(x, y)`
+</ParamField>
+
+<ResponseField name="return" type="ImageClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+# Static position (top-left corner)
+image.set_position((0, 0))
+
+# Center the image
+video_width, video_height = 1920, 1080
+image.set_position((
+    (video_width - image.size[0]) // 2,
+    (video_height - image.size[1]) // 2
+))
+
+# Animated position (slide from left)
+image.set_position(lambda t: (int(t * 100), 50))
+```
+
+---
+
+### set_opacity
+
+```python
+set_opacity(value: Union[Callable[[float], float], float]) -> Self
+```
+
+Set the opacity of the image.
+
+<ParamField path="value" type="Union[float, Callable]" required>
+  Either a float (0.0-1.0) or a function that takes time and returns opacity
+</ParamField>
+
+<ResponseField name="return" type="ImageClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+# Semi-transparent watermark
+watermark.set_opacity(0.3)
+
+# Fade in effect
+image.set_opacity(lambda t: min(1.0, t / 2.0))
+```
+
+---
+
+### set_scale
+
+```python
+set_scale(value: Union[Callable[[float], float], float]) -> Self
+```
+
+Scale the image.
+
+<ParamField path="value" type="Union[float, Callable]" required>
+  Either a float or a function that takes time and returns scale multiplier
+</ParamField>
+
+<ResponseField name="return" type="ImageClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+# Static scale (half size)
+image.set_scale(0.5)
+
+# Zoom animation
+image.set_scale(lambda t: 1.0 + (t * 0.2))  # Grows 20% per second
+```
+
+---
+
+### set_size
+
+```python
+set_size(width: Optional[int] = None, height: Optional[int] = None) -> Self
+```
+
+Resize the image, maintaining aspect ratio if only one dimension is provided.
+
+<ParamField path="width" type="Optional[int]" default="None">
+  Target width in pixels
+</ParamField>
+
+<ParamField path="height" type="Optional[int]" default="None">
+  Target height in pixels
+</ParamField>
+
+<ResponseField name="return" type="ImageClip">
+  Self for method chaining
+</ResponseField>
+
+<Info>
+The resize is applied lazily and permanently modifies the image in memory. At least one dimension must be provided.
+</Info>
+
+**Example:**
+```python
+# Resize to specific dimensions
+image.set_size(width=1280, height=720)
+
+# Resize maintaining aspect ratio
+image.set_size(width=800)  # Height calculated automatically
+image.set_size(height=600)  # Width calculated automatically
+```
+
+---
+
+### set_rotation
+
+```python
+set_rotation(
+    angle: Union[Callable[[float], float], float],
+    unit: str = "deg",
+    resample: str = "bilinear",
+    expand: bool = True,
+    center: Optional[Tuple[float, float]] = None,
+    translate: Optional[Tuple[float, float]] = None,
+    bg_color: Optional[Tuple[int, ...]] = None
+) -> Self
+```
+
+Rotate the image.
+
+<ParamField path="angle" type="Union[float, Callable]" required>
+  Rotation angle (static or animated). Positive values rotate counter-clockwise
+</ParamField>
+
+<ParamField path="unit" type="str" default="deg">
+  Unit: `"deg"` (degrees) or `"rad"` (radians)
+</ParamField>
+
+<ParamField path="expand" type="bool" default="True">
+  If True, expands canvas to fit rotated image without clipping
+</ParamField>
+
+**Example:**
+```python
+# Static rotation
+image.set_rotation(45)  # 45 degrees
+
+# Spinning animation
+image.set_rotation(lambda t: t * 180)  # 180 degrees per second
+```
+
+---
+
+### set_mask
+
+```python
+set_mask(mask: GraphicClip) -> Self
+```
+
+Apply a mask to control which pixels are visible.
+
+<ParamField path="mask" type="GraphicClip" required>
+  A GraphicClip to use as mask (white = visible, black = transparent)
+</ParamField>
+
+<ResponseField name="return" type="ImageClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+image = ImageClip("photo.png")
+circle_mask = ImageClip("circle_mask.png")
+image.set_mask(circle_mask)  # Image appears in circular shape
+```
+
+---
+
+### add_effect
+
+```python
+add_effect(effect: GraphicEffect) -> Self
+```
+
+Apply a visual effect.
+
+<ParamField path="effect" type="GraphicEffect" required>
+  A visual effect instance from `movielite.vfx`
+</ParamField>
+
+<ResponseField name="return" type="ImageClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+from movielite import vfx
+
+image = ImageClip("photo.png", duration=5)
+image.add_effect(vfx.FadeIn(1.0))
+image.add_effect(vfx.FadeOut(1.0))
+image.add_effect(vfx.Blur(radius=3))
+```
+
+---
+
+### add_transform
+
+```python
+add_transform(callback: Callable[[np.ndarray, float], np.ndarray]) -> Self
+```
+
+Apply a custom transformation.
+
+<ParamField path="callback" type="Callable[[np.ndarray, float], np.ndarray]" required>
+  Function that takes (frame, time) and returns transformed frame (BGR/BGRA uint8)
+</ParamField>
+
+<ResponseField name="return" type="ImageClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+import cv2
+
+def make_grayscale(frame, t):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+image.add_transform(make_grayscale)
+```
+
+## Image Format Handling
+
+<Accordion title="How ImageClip handles different formats">
+
+### File Loading
+
+When loading from a file path, ImageClip uses OpenCV's `cv2.imread()` with `IMREAD_UNCHANGED` flag to preserve alpha channels.
+
+### Numpy Array Conversion
+
+When loading from a numpy array:
+- **RGB/RGBA arrays:** Converted to BGR/BGRA (OpenCV format)
+- **Fully opaque BGRA:** Alpha channel dropped to save memory (converted to BGR)
+
+### Memory Optimization
+
+Defined in `image_clip.py:39-44`:
+
+```python
+if img.shape[2] == 4:
+    alpha = img[:, :, 3]
+    if (alpha == 255).all():
+        # Fully opaque, drop alpha channel
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+```
+
+This optimization reduces memory usage when alpha channel is not needed.
+
+</Accordion>
+
+## Complete Examples
+
+### Example 1: Lower Third Text Bar
+
+```python
+from movielite import VideoClip, ImageClip, TextClip, VideoWriter, vfx
+from pictex import Canvas
+
+video = VideoClip("interview.mp4")
+
+# Semi-transparent background bar
+bar = ImageClip.from_color(
+    color=(0, 0, 0, 200),  # Semi-transparent black
+    size=(video.size[0], 120),
+    duration=5
+)
+bar.set_position((0, video.size[1] - 120))
+bar.add_effect(vfx.FadeIn(0.5))
+bar.add_effect(vfx.FadeOut(0.5))
+
+# Name text
+canvas = Canvas().font_size(50).color("white").background_color("transparent")
+name = TextClip("John Doe", duration=5, canvas=canvas)
+name.set_position((40, video.size[1] - 100))
+name.add_effect(vfx.FadeIn(0.5))
+
+writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, bar, name])
+writer.write()
+```
+
+### Example 2: Photo Slideshow
+
+```python
+from movielite import ImageClip, VideoWriter, vfx, vtx
+
+# Create clips for each photo
+photos = [
+    ImageClip("photo1.jpg", start=0, duration=3),
+    ImageClip("photo2.jpg", start=2.5, duration=3),
+    ImageClip("photo3.jpg", start=5, duration=3),
+]
+
+# Resize all to same size
+for photo in photos:
+    photo.set_size(width=1920, height=1080)
+
+# Add crossfade transitions
+for i in range(len(photos) - 1):
+    photos[i].add_transition(photos[i + 1], vtx.CrossFade(0.5))
+
+# Add fade effects
+photos[0].add_effect(vfx.FadeIn(0.5))
+photos[-1].add_effect(vfx.FadeOut(0.5))
+
+writer = VideoWriter("slideshow.mp4", fps=30, size=(1920, 1080))
+writer.add_clips(photos)
+writer.write()
+```
+
+### Example 3: Animated Logo Watermark
+
+```python
+from movielite import VideoClip, ImageClip, VideoWriter
+import math
+
+video = VideoClip("main.mp4")
+
+# Load logo with transparency
+logo = ImageClip("logo.png", duration=video.duration)
+logo.set_size(width=200)
+
+# Position in bottom-right corner with padding
+logo.set_position((
+    video.size[0] - logo.size[0] - 20,
+    video.size[1] - logo.size[1] - 20
+))
+
+# Subtle pulsing animation
+logo.set_opacity(lambda t: 0.5 + 0.1 * math.sin(t * 2))
+logo.set_scale(lambda t: 1.0 + 0.05 * math.sin(t * 2))
+
+writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, logo])
+writer.write()
+```
+
+## See Also
+
+- [`TextClip`](/api/text-clip) - For rendering text as images
+- [`VideoClip`](/api/video-clip) - For video clips
+- [`AlphaVideoClip`](/api/alpha-video-clip) - For videos with transparency
+- [`VideoWriter`](/api/video-writer) - For rendering compositions

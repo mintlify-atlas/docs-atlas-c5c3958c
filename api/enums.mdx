@@ -1,0 +1,118 @@
+---
+title: 'Enums'
+description: 'Enumeration types used in MovieLite'
+---
+
+MovieLite provides enumeration types for configuring video processing settings.
+
+## VideoQuality
+
+Defines preset quality levels for video export and processing.
+
+```python
+from movielite.enums import VideoQuality
+```
+
+### Class Definition
+
+```python
+class VideoQuality(Enum):
+    LOW = "low"
+    MIDDLE = "middle"
+    HIGH = "high"
+    VERY_HIGH = "very_high"
+```
+
+### Values
+
+<ParamField path="VideoQuality.LOW" type="str">
+  Low quality preset
+  
+  **Value:** `"low"`
+  
+  Use for smaller file sizes and faster processing. Suitable for previews or low-bandwidth scenarios.
+</ParamField>
+
+<ParamField path="VideoQuality.MIDDLE" type="str">
+  Medium quality preset
+  
+  **Value:** `"middle"`
+  
+  Balanced quality and file size. Good default for most use cases.
+</ParamField>
+
+<ParamField path="VideoQuality.HIGH" type="str">
+  High quality preset
+  
+  **Value:** `"high"`
+  
+  Higher quality output with larger file sizes. Recommended for final exports.
+</ParamField>
+
+<ParamField path="VideoQuality.VERY_HIGH" type="str">
+  Very high quality preset
+  
+  **Value:** `"very_high"`
+  
+  Maximum quality output. Use for archival or when quality is critical.
+</ParamField>
+
+### Usage
+
+```python
+from movielite import VideoEditor
+from movielite.enums import VideoQuality
+
+# Create a video editor with high quality setting
+editor = VideoEditor(quality=VideoQuality.HIGH)
+
+# Or use it when exporting
+editor.export("output.mp4", quality=VideoQuality.VERY_HIGH)
+```
+
+### Quality Settings
+
+Each quality level maps to specific FFmpeg encoding parameters:
+
+<CardGroup cols={2}>
+  <Card title="LOW" icon="gauge-min">
+    Fast encoding, smaller files, lower visual quality
+  </Card>
+  <Card title="MIDDLE" icon="gauge-simple">
+    Balanced encoding speed and quality
+  </Card>
+  <Card title="HIGH" icon="gauge">
+    Slower encoding, larger files, better visual quality
+  </Card>
+  <Card title="VERY_HIGH" icon="gauge-max">
+    Slowest encoding, largest files, best visual quality
+  </Card>
+</CardGroup>
+
+<Note>
+  The exact FFmpeg parameters for each quality level are determined by MovieLite's internal encoding configuration. Higher quality settings will increase processing time and output file size.
+</Note>
+
+### Accessing Enum Values
+
+```python
+from movielite.enums import VideoQuality
+
+# Access by name
+quality = VideoQuality.HIGH
+
+# Get the string value
+print(quality.value)  # "high"
+
+# Compare values
+if quality == VideoQuality.HIGH:
+    print("Using high quality")
+
+# Iterate over all quality levels
+for quality_level in VideoQuality:
+    print(f"{quality_level.name}: {quality_level.value}")
+```
+
+<Info>
+  `VideoQuality` is a standard Python `Enum` class, so all standard enum operations are supported.
+</Info>

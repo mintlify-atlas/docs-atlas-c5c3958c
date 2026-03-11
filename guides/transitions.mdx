@@ -1,0 +1,430 @@
+---
+title: Transitions
+description: Create smooth transitions between clips using MovieLite's vtx module
+---
+
+## Overview
+
+MovieLite provides professional transition effects through the `vtx` module. Transitions create smooth visual connections between clips, making scene changes less jarring and more cinematic.
+
+## Available Transitions
+
+MovieLite includes three built-in transitions:
+
+- **CrossFade** - Classic fade transition where clips blend together
+- **Dissolve** - Alias for CrossFade (same effect)
+- **BlurDissolve** - Adds motion blur during the transition for a dream-like effect
+
+## Basic Crossfade
+
+### Simple Crossfade
+
+The most common transition, where one clip fades out while the next fades in:
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+# Clips must overlap for transition
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.5, duration=5)  # 0.5s overlap
+
+# Apply crossfade during overlap
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+
+total_duration = clip1.duration + clip2.duration - 0.5  # Account for overlap
+
+writer = VideoWriter("output_crossfade.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+<Info>
+  **Important**: For CrossFade and Dissolve transitions, clips must have overlapping time ranges. The overlap duration must match or exceed the transition duration.
+</Info>
+
+### Understanding Overlap
+
+The overlap is critical for transitions:
+
+```python
+# Clip 1: 0s to 5s
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+
+# Clip 2: 4.5s to 9.5s (starts before clip1 ends)
+clip2 = VideoClip("scene2.mp4", start=4.5, duration=5)
+
+# Overlap period: 4.5s to 5s (0.5 seconds)
+# This is where the transition happens
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+```
+
+<Steps>
+  <Step title="Calculate overlap">
+    Determine how long you want the transition to last (e.g., 0.5 seconds)
+  </Step>
+  <Step title="Set start times">
+    Make clip2 start earlier by the transition duration: `start=clip1.end - transition_duration`
+  </Step>
+  <Step title="Apply transition">
+    Call `clip1.add_transition(clip2, vtx.CrossFade(duration=...))`
+  </Step>
+  <Step title="Calculate total duration">
+    Subtract the overlap: `total = clip1.duration + clip2.duration - overlap`
+  </Step>
+</Steps>
+
+### Longer Crossfades
+
+Longer transitions create smoother, more gradual changes:
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+clip1 = VideoClip("scene1.mp4", start=0, duration=8)
+clip2 = VideoClip("scene2.mp4", start=6.0, duration=8)  # 2.0s overlap
+
+# Longer crossfade creates smoother transition
+clip1.add_transition(clip2, vtx.CrossFade(duration=2.0))
+
+total_duration = clip1.duration + clip2.duration - 2.0
+
+writer = VideoWriter("output_long_crossfade.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+<Tip>
+  For cinematic feel, use 1-2 second crossfades. For quick cuts, use 0.3-0.5 seconds.
+</Tip>
+
+## Dissolve Transition
+
+Dissolve is functionally identical to CrossFade - it's provided as an alias:
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.5, duration=5)
+
+# Dissolve is the same as CrossFade
+clip1.add_transition(clip2, vtx.Dissolve(duration=0.5))
+
+writer = VideoWriter("output_dissolve.mp4", fps=30, size=clip1.size, duration=9.5)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+## Blur Dissolve
+
+### Basic Blur Dissolve
+
+BlurDissolve adds a blur effect during the transition, creating a dream-like or flashback effect:
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.0, duration=5)  # 1.0s overlap
+
+# Apply blur dissolve with maximum blur intensity of 15
+clip1.add_transition(clip2, vtx.BlurDissolve(duration=1.0, max_blur=15.0))
+
+total_duration = clip1.duration + clip2.duration - 1.0
+
+writer = VideoWriter("output_blur_dissolve.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+### How BlurDissolve Works
+
+During the transition:
+1. The first clip gradually blurs (from clear to max_blur)
+2. The first clip fades out
+3. The second clip fades in sharply (no blur)
+
+```python
+# Subtle blur
+clip1.add_transition(clip2, vtx.BlurDissolve(duration=0.5, max_blur=5.0))
+
+# Strong blur for dramatic effect
+clip1.add_transition(clip2, vtx.BlurDissolve(duration=1.5, max_blur=25.0))
+```
+
+<Warning>
+  Higher blur values (above 25) significantly increase rendering time. The blur is applied using Gaussian blur, which is computationally expensive.
+</Warning>
+
+### Blur Dissolve Parameters
+
+<CodeGroup>
+```python Subtle Blur (Dream Sequence)
+vtx.BlurDissolve(duration=1.0, max_blur=7.0)
+```
+
+```python Medium Blur (Flashback)
+vtx.BlurDissolve(duration=1.0, max_blur=15.0)
+```
+
+```python Heavy Blur (Time Shift)
+vtx.BlurDissolve(duration=1.5, max_blur=25.0)
+```
+</CodeGroup>
+
+## Multiple Transitions
+
+### Chaining Transitions
+
+Apply different transitions between multiple clips:
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+# Create 3 clips with overlaps
+clip1 = VideoClip("scene1.mp4", start=0, duration=4)
+clip2 = VideoClip("scene2.mp4", start=3.5, duration=4)  # 0.5s overlap
+clip3 = VideoClip("scene3.mp4", start=7.0, duration=4)  # 0.5s overlap with clip2
+
+# Apply different transitions
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+clip2.add_transition(clip3, vtx.Dissolve(duration=0.5))
+
+total_duration = 11.0  # 4 + 4 + 4 - 0.5 - 0.5
+
+writer = VideoWriter("output_multi_transitions.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2, clip3])
+writer.write()
+
+clip1.close()
+clip2.close()
+clip3.close()
+```
+
+<Note>
+  Each transition is applied independently. You can mix CrossFade, Dissolve, and BlurDissolve in the same video.
+</Note>
+
+## Combining with Effects
+
+### Transitions + Visual Effects
+
+Transitions work seamlessly with visual effects:
+
+```python
+from movielite import VideoClip, VideoWriter, vfx, vtx
+
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.5, duration=5)
+
+# Add effects to individual clips
+clip1.add_effect(vfx.Saturation(1.3))  # Boost saturation
+clip2.add_effect(vfx.Brightness(1.1))  # Increase brightness
+
+# Add transition between them
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+
+total_duration = clip1.duration + clip2.duration - 0.5
+
+writer = VideoWriter("output_transition_effects.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+## Image Slideshows
+
+### Creating a Photo Slideshow
+
+Transitions work beautifully with ImageClips:
+
+```python
+from movielite import ImageClip, VideoWriter, vtx
+
+# Create image clips
+images = [
+    ImageClip("photo1.jpg", start=0, duration=3),
+    ImageClip("photo2.jpg", start=2.5, duration=3),     # 0.5s overlap
+    ImageClip("photo3.jpg", start=5.0, duration=3),     # 0.5s overlap
+    ImageClip("photo4.jpg", start=7.5, duration=3),     # 0.5s overlap
+]
+
+# Apply crossfade between each
+for i in range(len(images) - 1):
+    images[i].add_transition(images[i + 1], vtx.CrossFade(duration=0.5))
+
+total_duration = 9.5  # 3 + 3 + 3 + 3 - 0.5 - 0.5 - 0.5
+
+writer = VideoWriter("output_slideshow.mp4", fps=30, size=images[0].size, duration=total_duration)
+writer.add_clips(images)
+writer.write()
+```
+
+<Steps>
+  <Step title="Load images">
+    Create ImageClip instances with appropriate durations
+  </Step>
+  <Step title="Set timing">
+    Position each image to overlap with the next by the transition duration
+  </Step>
+  <Step title="Apply transitions">
+    Loop through and apply transitions between consecutive images
+  </Step>
+  <Step title="Render">
+    Write the final slideshow to video
+  </Step>
+</Steps>
+
+## Audio During Transitions
+
+### Audio Crossfading
+
+When using CrossFade or Dissolve with VideoClips that have audio, the audio tracks are automatically crossfaded:
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+# Both clips have audio
+clip1 = VideoClip("scene1_with_audio.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2_with_audio.mp4", start=4.5, duration=5)
+
+# CrossFade will blend both video AND audio
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=9.5)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+<Info>
+  BlurDissolve only affects video. Audio crossfading is not applied for BlurDissolve transitions.
+</Info>
+
+## Transition Duration Guidelines
+
+| Use Case | Recommended Duration | Effect |
+|----------|---------------------|--------|
+| Quick cut alternative | 0.2-0.3s | Barely noticeable, softens hard cuts |
+| Standard transition | 0.5-0.7s | Natural, professional feel |
+| Dramatic transition | 1.0-1.5s | Cinematic, draws attention |
+| Slow, dreamy effect | 2.0-3.0s | Contemplative, artistic |
+
+## Common Patterns
+
+### Music Video Style (Fast Cuts)
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+clips = [
+    VideoClip("clip1.mp4", start=0, duration=2),
+    VideoClip("clip2.mp4", start=1.8, duration=2),  # 0.2s overlap
+    VideoClip("clip3.mp4", start=3.6, duration=2),  # 0.2s overlap
+]
+
+# Fast transitions
+for i in range(len(clips) - 1):
+    clips[i].add_transition(clips[i + 1], vtx.CrossFade(duration=0.2))
+
+writer = VideoWriter("music_video.mp4", fps=30, size=clips[0].size, duration=5.6)
+writer.add_clips(clips)
+writer.write()
+```
+
+### Documentary Style (Smooth Transitions)
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+clips = [
+    VideoClip("interview1.mp4", start=0, duration=10),
+    VideoClip("broll1.mp4", start=9.0, duration=8),    # 1.0s overlap
+    VideoClip("interview2.mp4", start=16.0, duration=10),  # 1.0s overlap
+]
+
+# Smooth, professional transitions
+for i in range(len(clips) - 1):
+    clips[i].add_transition(clips[i + 1], vtx.CrossFade(duration=1.0))
+
+writer = VideoWriter("documentary.mp4", fps=30, size=clips[0].size, duration=26.0)
+writer.add_clips(clips)
+writer.write()
+```
+
+### Dream Sequence (Blur Dissolve)
+
+```python
+from movielite import VideoClip, VideoWriter, vtx, vfx
+
+# Reality
+reality = VideoClip("reality.mp4", start=0, duration=5)
+
+# Dream (with color effects)
+dream = VideoClip("dream.mp4", start=3.5, duration=6)  # 1.5s overlap
+dream.add_effect(vfx.Saturation(1.5))  # More vivid colors
+dream.add_effect(vfx.Brightness(1.1))
+
+# Blur dissolve into dream
+reality.add_transition(dream, vtx.BlurDissolve(duration=1.5, max_blur=20.0))
+
+writer = VideoWriter("dream_sequence.mp4", fps=30, size=reality.size, duration=9.5)
+writer.add_clips([reality, dream])
+writer.write()
+
+reality.close()
+dream.close()
+```
+
+## Best Practices
+
+<Card title="Match Clip Sizes" icon="expand">
+  Ensure all clips have the same dimensions. Use `.set_size()` to standardize if needed.
+</Card>
+
+<Card title="Test Transition Duration" icon="clock">
+  Too fast = jarring, too slow = boring. Start with 0.5s and adjust based on the mood you want.
+</Card>
+
+<Card title="Consider Audio" icon="volume">
+  If clips have different audio levels, consider using audio effects to normalize volume before transitions.
+</Card>
+
+<Card title="Don't Overuse" icon="warning">
+  Transitions should enhance storytelling, not distract. Use them purposefully, not on every cut.
+</Card>
+
+## Performance Considerations
+
+<Note>
+  **CrossFade/Dissolve**: Moderate performance impact. Uses alpha blending which is Numba-optimized.
+  
+  **BlurDissolve**: Higher performance impact. Gaussian blur is expensive, especially with large `max_blur` values.
+</Note>
+
+For faster rendering of BlurDissolve:
+- Keep `max_blur` under 20
+- Use shorter transition durations
+- Enable multiprocessing with `writer.write(processes=8)`
+
+## Next Steps
+
+- Learn about [Masking](/guides/masking) for creative transition effects
+- Explore [Custom Effects](/guides/custom-effects) to create your own transition styles
+- Optimize rendering with [Performance Tips](/guides/performance)

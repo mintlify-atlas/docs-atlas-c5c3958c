@@ -1,0 +1,540 @@
+---
+title: "Effects"
+description: "Apply visual effects, audio effects, and transitions to clips"
+---
+
+## Overview
+
+MovieLite provides three categories of effects:
+
+- **VFX (Visual Effects)** - Effects for `GraphicClip` instances (video, image, text)
+- **AFX (Audio Effects)** - Effects for `AudioClip` instances
+- **VTX (Video Transitions)** - Transitions between two `GraphicClip` instances
+
+All effects use a consistent API: create the effect, then apply it to a clip.
+
+## Visual Effects (VFX)
+
+Visual effects modify how graphic clips appear. They work by adding transformations to the clip's rendering pipeline.
+
+### Importing VFX
+
+```python
+from movielite import vfx
+from movielite import VideoClip, ImageClip
+```
+
+### Fade Effects
+
+#### FadeIn
+
+Gradually increases opacity from 0 to the clip's original opacity.
+
+```python
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_effect(vfx.FadeIn(duration=2.0))
+# Fades in over first 2 seconds
+```
+
+#### FadeOut
+
+Gradually decreases opacity to 0 at the end of the clip.
+
+```python
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_effect(vfx.FadeOut(duration=1.5))
+# Fades out over last 1.5 seconds
+```
+
+#### Combining Fades
+
+```python
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_effect(vfx.FadeIn(2.0)).add_effect(vfx.FadeOut(2.0))
+# Fades in for 2s, fades out for 2s
+```
+
+Source: `src/movielite/vfx/fade.py:1`
+
+### Blur Effects
+
+#### Blur (Static)
+
+Applies constant Gaussian blur.
+
+```python
+clip = ImageClip("photo.png", start=0, duration=5)
+clip.add_effect(vfx.Blur(intensity=15.0))
+# intensity must be odd number >= 1 (kernel size)
+```
+
+#### Blur (Animated)
+
+Blur increases from 0 to maximum over time.
+
+```python
+clip = ImageClip("photo.png", start=0, duration=5)
+clip.add_effect(vfx.Blur(intensity=21.0, animated=True, duration=3.0))
+# Blur increases over first 3 seconds
+```
+
+#### BlurIn
+
+Starts blurred and becomes sharp.
+
+```python
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_effect(vfx.BlurIn(duration=2.0, max_intensity=25.0))
+# Starts at blur intensity 25, decreases to 0 over 2 seconds
+```
+
+#### BlurOut
+
+Starts sharp and becomes blurred at the end.
+
+```python
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_effect(vfx.BlurOut(duration=2.0, max_intensity=25.0))
+# Last 2 seconds blur from 0 to intensity 25
+```
+
+Source: `src/movielite/vfx/blur.py:1`
+
+### Color Adjustments
+
+#### Brightness
+
+Adjust brightness using optimized pixel transforms (numba-compiled).
+
+```python
+clip = VideoClip("dark_video.mp4", start=0, duration=10)
+clip.add_effect(vfx.Brightness(factor=1.3))
+# 1.0 = no change, >1.0 = brighter, <1.0 = darker
+```
+
+#### Contrast
+
+Adjust contrast around midpoint (128).
+
+```python
+clip = ImageClip("photo.png", start=0, duration=5)
+clip.add_effect(vfx.Contrast(factor=1.5))
+# 1.0 = no change, >1.0 = more contrast, <1.0 = less contrast
+```
+
+#### Saturation
+
+Adjust color saturation.
+
+```python
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_effect(vfx.Saturation(factor=1.5))
+# 1.0 = no change, 0.0 = grayscale, >1.0 = more saturated
+```
+
+#### Black and White
+
+Convert to grayscale.
+
+```python
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_effect(vfx.BlackAndWhite())
+# Also available as: vfx.Grayscale()
+```
+
+#### Sepia
+
+Apply sepia tone effect.
+
+```python
+clip = ImageClip("old_photo.png", start=0, duration=5)
+clip.add_effect(vfx.Sepia(intensity=1.0))
+# intensity: 0.0 = no effect, 1.0 = full sepia
+```
+
+Source: `src/movielite/vfx/color.py:1`
+
+### Zoom Effects
+
+#### ZoomIn
+
+Gradually scales up from smaller size.
+
+```python
+clip = ImageClip("photo.png", start=0, duration=5)
+clip.add_effect(vfx.ZoomIn(
+    duration=3.0,
+    from_scale=1.0,
+    to_scale=1.5,
+    anchor="center"  # or "top-left", "bottom-right", etc.
+))
+# Zooms from 100% to 150% over 3 seconds
+```
+
+#### ZoomOut
+
+Gradually scales down, applied at the end of clip.
+
+```python
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_effect(vfx.ZoomOut(
+    duration=2.0,
+    from_scale=1.5,
+    to_scale=1.0,
+    anchor="center"
+))
+# Last 2 seconds: zooms from 150% to 100%
+```
+
+#### Ken Burns Effect
+
+Combines slow zoom and pan for cinematic feel.
+
+```python
+clip = ImageClip("landscape.png", start=0, duration=8)
+clip.add_effect(vfx.KenBurns(
+    duration=8.0,           # None = entire clip
+    start_scale=1.0,
+    end_scale=1.3,
+    start_position=(0, 0),
+    end_position=(-100, -50)  # Pan left and up
+))
+# Smooth zoom + pan with easing
+```
+
+<Info>
+Ken Burns effect uses cubic ease-in-out for smooth, professional-looking animations.
+</Info>
+
+Source: `src/movielite/vfx/zoom.py:1`
+
+### Anchor Points
+
+Zoom effects support various anchor points:
+
+- `"center"` (default)
+- `"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"`
+- `"top"`, `"bottom"`, `"left"`, `"right"`
+- `(x, y)` tuple for custom position
+
+```python
+# Zoom from top-left corner
+clip.add_effect(vfx.ZoomIn(duration=2.0, anchor="top-left"))
+
+# Zoom from custom point
+clip.add_effect(vfx.ZoomIn(duration=2.0, anchor=(500, 300)))
+```
+
+## Chaining Effects
+
+Effects can be chained to create complex transformations:
+
+```python
+from movielite import vfx, VideoClip
+
+clip = VideoClip("video.mp4", start=0, duration=10)
+
+# Chain multiple effects
+clip.add_effect(vfx.FadeIn(2.0)) \
+    .add_effect(vfx.Brightness(1.2)) \
+    .add_effect(vfx.Saturation(1.3)) \
+    .add_effect(vfx.FadeOut(2.0))
+```
+
+<Note>
+Effects are applied in the order they're added. Some effects (like fades) modify opacity functions, while others add frame transforms.
+</Note>
+
+## Custom Effects
+
+Create custom visual effects by extending `GraphicEffect`:
+
+```python
+from movielite.vfx.base import GraphicEffect
+from movielite.core import GraphicClip
+import numpy as np
+import cv2
+
+class Vignette(GraphicEffect):
+    """Add dark vignette effect around edges."""
+    
+    def __init__(self, intensity: float = 0.5):
+        self.intensity = intensity
+    
+    def apply(self, clip: GraphicClip) -> None:
+        def vignette_transform(frame: np.ndarray, t: float) -> np.ndarray:
+            h, w = frame.shape[:2]
+            
+            # Create radial gradient
+            center_x, center_y = w // 2, h // 2
+            Y, X = np.ogrid[:h, :w]
+            dist = np.sqrt((X - center_x)**2 + (Y - center_y)**2)
+            max_dist = np.sqrt(center_x**2 + center_y**2)
+            
+            # Vignette mask
+            vignette = 1 - (dist / max_dist) * self.intensity
+            vignette = np.clip(vignette, 0, 1)
+            
+            # Apply to each channel
+            result = frame.copy()
+            for c in range(frame.shape[2]):
+                result[:, :, c] = (frame[:, :, c] * vignette).astype(np.uint8)
+            
+            return result
+        
+        clip.add_transform(vignette_transform)
+
+# Usage
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_effect(Vignette(intensity=0.7))
+```
+
+Source: `src/movielite/vfx/base.py:1`
+
+### Pixel-Level Transforms
+
+For color adjustments, use numba-compiled pixel transforms for better performance:
+
+```python
+import numba
+from movielite.core import GraphicClip
+
+@numba.njit
+def red_tint(b, g, r, a, t):
+    """Add red tint to each pixel."""
+    return (
+        min(255, max(0, int(b * 0.8))),
+        min(255, max(0, int(g * 0.8))),
+        min(255, max(0, int(r * 1.2)))
+    )
+
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.add_pixel_transform(red_tint)
+```
+
+<Tip>
+Pixel transforms are batched and executed efficiently using numba. Multiple transforms are applied in a single pass.
+</Tip>
+
+Source: `src/movielite/core/graphic_clip.py:187`
+
+## Audio Effects (AFX)
+
+Audio effects modify audio samples in real-time during mixing.
+
+### Importing AFX
+
+```python
+from movielite import afx
+from movielite import AudioClip
+```
+
+### Fade Effects
+
+#### FadeIn (Audio)
+
+Gradually increases volume from 0 to the clip's original volume.
+
+```python
+audio = AudioClip("music.mp3", start=0, duration=30)
+audio.add_effect(afx.FadeIn(duration=3.0))
+# Fades in over first 3 seconds
+```
+
+#### FadeOut (Audio)
+
+Gradually decreases volume to 0 at the end.
+
+```python
+audio = AudioClip("music.mp3", start=0, duration=30)
+audio.add_effect(afx.FadeOut(duration=5.0))
+# Fades out over last 5 seconds
+```
+
+Source: `src/movielite/afx/fade.py:1`
+
+### Custom Audio Effects
+
+Create custom audio effects by extending `AudioEffect`:
+
+```python
+from movielite.afx.base import AudioEffect
+from movielite.audio import AudioClip
+import numpy as np
+
+class Echo(AudioEffect):
+    """Add simple echo effect."""
+    
+    def __init__(self, delay: float = 0.5, decay: float = 0.6):
+        self.delay = delay  # seconds
+        self.decay = decay  # 0.0 to 1.0
+    
+    def apply(self, clip: AudioClip) -> None:
+        def echo_transform(samples: np.ndarray, t: float, sr: int) -> np.ndarray:
+            delay_samples = int(self.delay * sr)
+            
+            if len(samples) < delay_samples:
+                return samples
+            
+            result = samples.copy()
+            # Add delayed version of audio
+            result[delay_samples:] += samples[:-delay_samples] * self.decay
+            
+            return result
+        
+        clip.add_transform(echo_transform)
+
+# Usage
+audio = AudioClip("voice.mp3", start=0, duration=10)
+audio.add_effect(Echo(delay=0.3, decay=0.5))
+```
+
+Source: `src/movielite/afx/base.py:1`
+
+## Transitions (VTX)
+
+Transitions smoothly blend between two graphic clips. They require clips to overlap in time.
+
+### Importing VTX
+
+```python
+from movielite import vtx
+from movielite import VideoClip, ImageClip
+```
+
+### CrossFade
+
+Blends from one clip to another. The first clip fades out while the second fades in.
+
+```python
+clip1 = VideoClip("video1.mp4", start=0, duration=10)
+clip2 = VideoClip("video2.mp4", start=9, duration=10)
+
+# Create 1-second crossfade
+clip1.add_transition(clip2, vtx.CrossFade(duration=1.0))
+
+# Clips must overlap by at least the transition duration
+# clip1 ends at 10s, clip2 starts at 9s -> 1s overlap ✓
+```
+
+<Warning>
+Transitions require clips to overlap. The overlap must be at least as long as the transition duration.
+</Warning>
+
+### Audio Crossfade
+
+If both clips are `VideoClip` instances with audio, `CrossFade` automatically applies crossfade to audio tracks:
+
+```python
+video1 = VideoClip("clip1.mp4", start=0, duration=10)
+video2 = VideoClip("clip2.mp4", start=9, duration=10)
+
+video1.add_transition(video2, vtx.CrossFade(duration=1.0))
+# Both video AND audio crossfade over 1 second
+```
+
+Source: `src/movielite/vtx/crossfade.py:1`
+
+### Transition Validation
+
+Transitions validate clip ordering and overlap:
+
+```python
+clip1 = VideoClip("video1.mp4", start=0, duration=5)
+clip2 = VideoClip("video2.mp4", start=8, duration=5)  # Gap: 5s to 8s
+
+clip1.add_transition(clip2, vtx.CrossFade(1.0))
+# Raises ValueError: "Clips do not overlap"
+```
+
+Source: `src/movielite/vtx/base.py:1`
+
+## Effect Performance
+
+<CardGroup cols={2}>
+  <Card title="Pixel Transforms" icon="microchip">
+    Use numba-compiled pixel transforms (`add_pixel_transform`) for color adjustments. They're batched and executed in a single pass.
+  </Card>
+  
+  <Card title="Frame Transforms" icon="image">
+    Frame transforms (`add_transform`) are applied sequentially. Each transform receives the output of the previous one.
+  </Card>
+  
+  <Card title="Opacity Effects" icon="eye">
+    Fade effects modify the opacity function, which is lightweight. Multiple fades can be combined efficiently.
+  </Card>
+  
+  <Card title="Audio Effects" icon="waveform">
+    Audio effects process samples in chunks (10-second buffers), keeping memory usage low even for long audio.
+  </Card>
+</CardGroup>
+
+## Complete Example
+
+```python
+from movielite import (
+    VideoWriter, VideoClip, ImageClip, TextClip,
+    vfx, afx, vtx, VideoQuality
+)
+from pictex import Canvas
+
+# Create clips with effects
+intro = VideoClip("intro.mp4", start=0, duration=5)
+intro.add_effect(vfx.FadeIn(1.0)) \
+     .add_effect(vfx.Brightness(1.1)) \
+     .add_effect(vfx.Saturation(1.2))
+intro.audio.add_effect(afx.FadeIn(1.0))
+
+title = TextClip(
+    "My Video",
+    start=4.5,
+    duration=3,
+    canvas=Canvas().font_size(80).color("white")
+)
+title.set_position((100, 100))
+title.add_effect(vfx.FadeIn(0.5)).add_effect(vfx.FadeOut(0.5))
+
+main = VideoClip("main.mp4", start=7, duration=30)
+main.add_effect(vfx.KenBurns(
+    duration=30,
+    start_scale=1.0,
+    end_scale=1.2,
+    start_position=(0, 0),
+    end_position=(-50, -30)
+))
+
+outro = ImageClip("outro.png", start=36.5, duration=5)
+outro.add_effect(vfx.FadeIn(0.5)) \
+     .add_effect(vfx.Sepia(0.8)) \
+     .add_effect(vfx.FadeOut(1.0))
+
+# Add crossfade transitions
+intro.add_transition(title, vtx.CrossFade(0.5))
+main.add_transition(outro, vtx.CrossFade(0.5))
+
+# Background music
+music = AudioClip("music.mp3", start=0, duration=42)
+music.set_volume(0.3)
+music.add_effect(afx.FadeIn(2.0)).add_effect(afx.FadeOut(3.0))
+
+# Compose
+writer = VideoWriter("output.mp4", fps=30, size=(1920, 1080))
+writer.add_clips([intro, title, main, outro, music])
+writer.write(video_quality=VideoQuality.HIGH)
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Clips" icon="film" href="/concepts/clips">
+    Learn about clip types and properties
+  </Card>
+  
+  <Card title="Video Writer" icon="file-video" href="/concepts/video-writer">
+    Composing and rendering videos
+  </Card>
+  
+  <Card title="Audio Mixing" icon="volume-high" href="/concepts/audio-mixing">
+    Advanced audio techniques
+  </Card>
+</CardGroup>

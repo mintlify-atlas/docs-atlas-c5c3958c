@@ -1,0 +1,549 @@
+---
+title: Performance Optimization
+description: Speed up rendering and optimize MovieLite projects
+---
+
+## Overview
+
+MovieLite is designed for performance, leveraging Numba JIT compilation and optimized rendering pipelines. This guide shows you how to maximize rendering speed and work efficiently with large video projects.
+
+## Multiprocessing
+
+### Parallel Rendering
+
+The fastest way to speed up rendering is using multiple CPU cores:
+
+```python
+from movielite import VideoClip, VideoWriter, VideoQuality
+
+clip = VideoClip("input.mp4")
+
+writer = VideoWriter("output.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+
+# Use 8 parallel processes for rendering
+writer.write(processes=8, video_quality=VideoQuality.HIGH)
+
+clip.close()
+```
+
+<Info>
+  MovieLite automatically splits the video into chunks and renders them in parallel. The chunks are then merged seamlessly into the final output.
+</Info>
+
+### Choosing the Right Process Count
+
+```python
+import multiprocessing
+
+# Use all available cores
+max_cores = multiprocessing.cpu_count()
+writer.write(processes=max_cores)
+
+# Leave some cores free for other tasks
+writer.write(processes=max_cores - 2)
+
+# Optimal for most systems: 4-8 processes
+writer.write(processes=8)
+```
+
+<Note>
+  **Diminishing returns**: Using more processes than CPU cores won't improve performance. The optimal count is usually your CPU core count minus 1-2.
+</Note>
+
+## Video Quality Settings
+
+### Quality vs Speed Tradeoff
+
+MovieLite provides quality presets that affect encoding speed:
+
+```python
+from movielite import VideoClip, VideoWriter, VideoQuality
+
+writer = VideoWriter("output.mp4", fps=30)
+writer.add_clip(clip)
+
+# Fastest (lowest quality) - good for previews
+writer.write(video_quality=VideoQuality.LOW)
+
+# Balanced (default) - good quality, reasonable speed
+writer.write(video_quality=VideoQuality.MIDDLE)
+
+# High quality - slower encoding
+writer.write(video_quality=VideoQuality.HIGH)
+
+# Best quality - slowest encoding
+writer.write(video_quality=VideoQuality.VERY_HIGH)
+```
+
+### Quality Presets Explained
+
+| Quality | FFmpeg Preset | CRF | Use Case | Speed |
+|---------|--------------|-----|----------|-------|
+| LOW | ultrafast | 23 | Previews, drafts | Fastest |
+| MIDDLE | veryfast | 21 | General use | Fast |
+| HIGH | fast | 19 | Final exports | Moderate |
+| VERY_HIGH | slow | 17 | Professional work | Slow |
+
+<Tip>
+  Use `VideoQuality.LOW` for testing and previews, then switch to `VideoQuality.HIGH` for final renders.
+</Tip>
+
+## Numba JIT Compilation
+
+### Understanding Numba Warmup
+
+MovieLite uses Numba to compile critical rendering functions to native code. The first frame rendered will be slower:
+
+```python
+import time
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+
+start = time.time()
+writer.write()  # First run: includes Numba compilation time
+print(f"Rendering time: {time.time() - start}s")
+
+clip.close()
+```
+
+<Info>
+  **First frame is slower**: Numba compiles functions on first use. After compilation, subsequent frames render at native speed. This is a one-time cost per Python session.
+</Info>
+
+## Blending Precision
+
+### High Precision vs Standard
+
+For complex compositions, you can choose between memory-efficient and high-precision blending:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+writer = VideoWriter("output.mp4", fps=30, size=(1920, 1080))
+
+# Standard precision (default) - uses uint8
+# - 4x less memory
+# - Faster processing
+# - Good for most use cases
+writer.write(high_precision_blending=False)
+
+# High precision - uses float32
+# - Better for many transparent layers (10+)
+# - Better for subtle gradients
+# - Prevents color banding in complex composites
+writer.write(high_precision_blending=True)
+```
+
+<Warning>
+  Only use `high_precision_blending=True` when you have:
+  - More than 10 composited layers with transparency
+  - Subtle gradients that show banding artifacts
+  - Professional color grading requirements
+  
+  Otherwise, the default uint8 mode is faster and uses less memory.
+</Warning>
+
+## Optimization Strategies
+
+### 1. Reduce Resolution for Testing
+
+```python
+from movielite import VideoClip, VideoWriter
+
+# Original: 4K video (3840x2160)
+clip = VideoClip("4k_video.mp4")
+
+# Test at 1080p
+clip.set_size(width=1920, height=1080)
+
+writer = VideoWriter("test.mp4", fps=clip.fps, size=(1920, 1080))
+writer.add_clip(clip)
+writer.write(processes=8, video_quality=VideoQuality.LOW)
+
+clip.close()
+```
+
+### 2. Use Shorter Test Clips
+
+```python
+from movielite import VideoClip, VideoWriter
+
+# Full video
+full_clip = VideoClip("long_video.mp4")
+
+# Test with first 5 seconds only
+test_clip = full_clip.subclip(0, 5)
+
+writer = VideoWriter("test.mp4", fps=test_clip.fps, size=test_clip.size)
+writer.add_clip(test_clip)
+writer.write()
+
+full_clip.close()
+```
+
+### 3. Minimize Effect Stacking
+
+```python
+# SLOW: Multiple heavy effects
+clip.add_effect(vfx.Blur(intensity=15))
+clip.add_effect(vfx.Vignette(intensity=0.5))
+clip.add_effect(vfx.ChromaticAberration(intensity=8))
+
+# BETTER: Use only necessary effects
+clip.add_effect(vfx.Vignette(intensity=0.5))
+```
+
+### 4. Cache Expensive Computations
+
+```python
+import cv2
+import numpy as np
+
+def create_optimized_vignette():
+    # Compute vignette mask once
+    vignette_mask = None
+    
+    def apply_vignette(frame: np.ndarray, t: float) -> np.ndarray:
+        nonlocal vignette_mask
+        
+        # Create mask only on first frame
+        if vignette_mask is None:
+            h, w = frame.shape[:2]
+            vignette_mask = create_vignette_mask(w, h)
+        
+        # Apply cached mask
+        return (frame * vignette_mask).astype(np.uint8)
+    
+    return apply_vignette
+
+clip.add_transform(create_optimized_vignette())
+```
+
+### 5. Use Pixel Transforms for Color Operations
+
+```python
+import numba
+
+# SLOW: Frame transform
+def slow_brightness(frame, t):
+    return (frame * 1.2).clip(0, 255).astype(np.uint8)
+
+clip.add_transform(slow_brightness)
+
+# FAST: Numba pixel transform (10-20x faster)
+@numba.njit
+def fast_brightness(b, g, r, a, t):
+    return (
+        min(255, int(b * 1.2)),
+        min(255, int(g * 1.2)),
+        min(255, int(r * 1.2))
+    )
+
+clip.add_pixel_transform(fast_brightness)
+```
+
+<Steps>
+  <Step title="Profile your pipeline">
+    Identify which effects or operations are slowest
+  </Step>
+  <Step title="Optimize bottlenecks">
+    Use Numba, caching, or simpler alternatives for slow operations
+  </Step>
+  <Step title="Test improvements">
+    Measure rendering time before and after optimizations
+  </Step>
+</Steps>
+
+## Benchmarking
+
+### Measuring Rendering Time
+
+```python
+import time
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+
+# Benchmark rendering
+start_time = time.time()
+writer.write(processes=8, video_quality=VideoQuality.MIDDLE)
+elapsed = time.time() - start_time
+
+print(f"Rendering took {elapsed:.2f} seconds")
+print(f"FPS: {(clip.duration * clip.fps) / elapsed:.2f}")
+
+clip.close()
+```
+
+### Running Official Benchmarks
+
+MovieLite includes benchmark scripts comparing performance with MoviePy:
+
+```bash
+# Run comparison benchmarks
+python benchmarks/compare_moviepy.py --input /path/to/input.mp4
+```
+
+### Real-World Performance
+
+From the official benchmarks (1280x720 video, 30fps):
+
+| Task | MovieLite | MoviePy | Speedup |
+|------|-----------|---------|--------|
+| No processing | 6.34s | 6.71s | **1.06x** |
+| Video zoom | 9.52s | 31.81s | **3.34x** |
+| Text overlay | 7.82s | 35.35s | **4.52x** |
+| Alpha compositing | 10.75s | 42.11s | **3.92x** |
+| Complex mix | 38.07s | 175.31s | **4.61x** |
+
+## Memory Management
+
+### Understanding Memory Usage
+
+MovieLite uses a streaming architecture that keeps memory usage low:
+
+```python
+# MovieLite only loads one frame at a time
+clip = VideoClip("large_video.mp4")  # Doesn't load entire video into RAM
+
+# Frames are read on-demand during rendering
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()  # Streams frames through the pipeline
+
+clip.close()
+```
+
+<Info>
+  MovieLite processes videos frame-by-frame, so a 10GB video file doesn't require 10GB of RAM. Memory usage depends on frame size and the number of active clips.
+</Info>
+
+### Closing Clips
+
+Always close clips to free resources:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+# Load clips
+clip1 = VideoClip("video1.mp4")
+clip2 = VideoClip("video2.mp4")
+
+# Use clips
+writer = VideoWriter("output.mp4", fps=30)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+# Clean up
+clip1.close()
+clip2.close()
+```
+
+### Context Manager Pattern
+
+Use Python's `with` statement for automatic cleanup:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+def render_video():
+    clip1 = VideoClip("video1.mp4")
+    clip2 = VideoClip("video2.mp4")
+    
+    try:
+        writer = VideoWriter("output.mp4", fps=30)
+        writer.add_clips([clip1, clip2])
+        writer.write()
+    finally:
+        clip1.close()
+        clip2.close()
+
+render_video()
+```
+
+## Effect Performance
+
+### Performance Comparison
+
+Ranked from fastest to slowest:
+
+#### Fast Effects (Minimal Impact)
+- `vfx.FadeIn` / `vfx.FadeOut` - Opacity modification
+- `vfx.Brightness` / `vfx.Contrast` / `vfx.Saturation` - Simple color math
+- `vfx.BlackAndWhite` / `vfx.Grayscale` - Color space conversion
+
+#### Moderate Effects
+- `vfx.Sepia` - Color transformation matrix
+- `vfx.Vignette` - Multiplicative overlay
+- `vfx.Blur` (low intensity) - Gaussian blur with small kernel
+
+#### Expensive Effects
+- `vfx.Blur` (high intensity) - Large Gaussian kernel
+- `vfx.ZoomIn` / `vfx.ZoomOut` - Resize operations
+- `vfx.ChromaticAberration` - Multiple channel shifts
+- `vfx.Glitch` - Random pixel operations
+- `vfx.Rotation` - Affine transformations
+
+#### Very Expensive
+- `vtx.BlurDissolve` - Animated blur during transition
+- Multiple stacked blur effects
+- Custom effects with nested loops
+
+## Transition Performance
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.5, duration=5)
+
+# FAST: CrossFade/Dissolve (alpha blending, Numba-optimized)
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+
+# SLOWER: BlurDissolve (Gaussian blur is expensive)
+clip1.add_transition(clip2, vtx.BlurDissolve(duration=0.5, max_blur=15))
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=9.5)
+writer.add_clips([clip1, clip2])
+
+# Use multiprocessing for faster rendering
+writer.write(processes=8)
+
+clip1.close()
+clip2.close()
+```
+
+## Optimization Checklist
+
+<Card title="1. Enable Multiprocessing" icon="microchip">
+  Always use `writer.write(processes=8)` for videos longer than 10 seconds.
+</Card>
+
+<Card title="2. Choose Appropriate Quality" icon="gauge">
+  Use `VideoQuality.LOW` for previews, `VideoQuality.HIGH` for finals.
+</Card>
+
+<Card title="3. Test on Short Clips" icon="scissors">
+  Use `.subclip()` to test effects on 2-5 second segments before full renders.
+</Card>
+
+<Card title="4. Minimize Effect Stacking" icon="layer-group">
+  Each effect adds processing time. Combine effects when possible.
+</Card>
+
+<Card title="5. Use Pixel Transforms" icon="bolt">
+  For color operations, use `add_pixel_transform()` with Numba instead of `add_transform()`.
+</Card>
+
+<Card title="6. Cache Computations" icon="database">
+  Pre-compute expensive operations like masks, gradients, and lookup tables.
+</Card>
+
+<Card title="7. Close Clips" icon="trash">
+  Always call `.close()` to free resources, especially in batch processing.
+</Card>
+
+<Card title="8. Reduce Resolution" icon="compress">
+  Test at 720p before rendering at 4K.
+</Card>
+
+## Common Bottlenecks
+
+### 1. Blur Operations
+
+```python
+# SLOW: Large blur kernel
+clip.add_effect(vfx.Blur(intensity=25))  # Very expensive
+
+# BETTER: Smaller blur
+clip.add_effect(vfx.Blur(intensity=7))  # Much faster
+```
+
+### 2. Multiple Resizing
+
+```python
+# SLOW: Resize multiple times
+clip.set_size(width=1280, height=720)
+clip.set_scale(0.5)  # Resizes again!
+
+# BETTER: Calculate final size once
+final_width = int(1280 * 0.5)
+final_height = int(720 * 0.5)
+clip.set_size(width=final_width, height=final_height)
+```
+
+### 3. Inefficient Transforms
+
+```python
+# SLOW: Frame copy every time
+def bad_transform(frame, t):
+    result = frame.copy()  # Unnecessary copy
+    return result * 1.2
+
+# BETTER: In-place when possible
+def good_transform(frame, t):
+    return (frame * 1.2).clip(0, 255).astype(np.uint8)
+```
+
+## Hardware Considerations
+
+### CPU
+- **More cores = faster**: MovieLite scales well with CPU core count
+- **Clock speed matters**: Single-threaded operations benefit from higher clock speeds
+- **Recommended**: 6+ cores for smooth editing workflow
+
+### RAM
+- **Minimum**: 8GB for 1080p editing
+- **Recommended**: 16GB for 1080p, 32GB for 4K
+- **Usage**: ~2-4GB per process, plus video frames in memory
+
+### Storage
+- **SSD highly recommended**: Reading video frames is I/O intensive
+- **NVMe SSD**: Best performance for 4K+ editing
+- **HDD**: Acceptable for 720p/1080p with longer render times
+
+## Performance Tips Summary
+
+<CodeGroup>
+```python Quick Preview
+writer.write(
+    processes=4,
+    video_quality=VideoQuality.LOW
+)
+```
+
+```python Balanced Export
+writer.write(
+    processes=8,
+    video_quality=VideoQuality.MIDDLE
+)
+```
+
+```python High Quality Final
+writer.write(
+    processes=multiprocessing.cpu_count(),
+    video_quality=VideoQuality.HIGH
+)
+```
+
+```python Maximum Quality
+writer.write(
+    processes=multiprocessing.cpu_count() - 1,
+    video_quality=VideoQuality.VERY_HIGH,
+    high_precision_blending=True
+)
+```
+</CodeGroup>
+
+## Next Steps
+
+- Learn about [Basic Editing](/guides/basic-editing) fundamentals
+- Explore [Custom Effects](/guides/custom-effects) optimization techniques
+- Review MovieLite's architecture in the README

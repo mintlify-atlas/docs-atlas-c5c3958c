@@ -1,0 +1,304 @@
+---
+title: Color Effects
+description: Color adjustment effects including saturation, brightness, contrast, grayscale, and sepia
+---
+
+Color effects allow you to adjust the visual properties of your video clips. MovieLite provides six color effect classes: `Saturation`, `Brightness`, `Contrast`, `BlackAndWhite`, `Grayscale`, and `Sepia`.
+
+## Saturation
+
+Adjust the color saturation of the clip.
+
+### Constructor
+
+```python
+Saturation(factor: float = 1.0)
+```
+
+<ParamField path="factor" type="float" default="1.0">
+  Saturation multiplier. Values:
+  - `1.0` = no change
+  - `0.0` = completely desaturated (grayscale)
+  - `>1.0` = more saturated colors
+  - `<1.0` = less saturated colors
+  
+  Minimum value is 0.0 (automatically clamped).
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Increase saturation
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Saturation(factor=1.5))
+
+# Reduce saturation
+clip.add_effect(vfx.Saturation(factor=0.5))
+
+# Completely desaturate (equivalent to grayscale)
+clip.add_effect(vfx.Saturation(factor=0.0))
+```
+
+### Technical Details
+
+- Converts frame from BGR to HSV color space
+- Multiplies the S (saturation) channel by the factor
+- Clamps values to valid range [0, 255]
+- Converts back to BGR
+
+Source: `src/movielite/vfx/color.py:7-43`
+
+---
+
+## Brightness
+
+Adjust the brightness of the clip.
+
+### Constructor
+
+```python
+Brightness(factor: float = 1.0)
+```
+
+<ParamField path="factor" type="float" default="1.0">
+  Brightness multiplier. Values:
+  - `1.0` = no change
+  - `>1.0` = brighter
+  - `<1.0` = darker
+  
+  Minimum value is 0.0 (automatically clamped).
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Increase brightness
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Brightness(factor=1.3))
+
+# Decrease brightness
+clip.add_effect(vfx.Brightness(factor=0.7))
+```
+
+### Technical Details
+
+<Info>
+The `Brightness` effect uses Numba JIT compilation for optimized performance. Each pixel's RGB values are multiplied by the factor and clamped to [0, 255].
+</Info>
+
+Source: `src/movielite/vfx/color.py:45-79`
+
+---
+
+## Contrast
+
+Adjust the contrast of the clip.
+
+### Constructor
+
+```python
+Contrast(factor: float = 1.0)
+```
+
+<ParamField path="factor" type="float" default="1.0">
+  Contrast multiplier. Values:
+  - `1.0` = no change
+  - `>1.0` = more contrast (darker darks, brighter brights)
+  - `<1.0` = less contrast (more washed out)
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Increase contrast
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Contrast(factor=1.4))
+
+# Decrease contrast
+clip.add_effect(vfx.Contrast(factor=0.6))
+```
+
+### Technical Details
+
+<Info>
+The `Contrast` effect uses Numba JIT compilation for optimized performance. It adjusts each pixel relative to the middle gray value (128).
+</Info>
+
+Formula: `new_value = (old_value - 128) × factor + 128`
+
+Source: `src/movielite/vfx/color.py:81-115`
+
+---
+
+## BlackAndWhite
+
+Convert the clip to black and white (grayscale).
+
+### Constructor
+
+```python
+BlackAndWhite()
+```
+
+No parameters required.
+
+### Example
+
+```python
+from movielite import VideoClip, vfx
+
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.BlackAndWhite())
+```
+
+### Technical Details
+
+- Converts frame to grayscale using OpenCV's `cvtColor`
+- Converts back to BGR (3-channel) format for consistency
+- Uses standard RGB→Gray conversion weights
+
+Source: `src/movielite/vfx/color.py:117-136`
+
+---
+
+## Grayscale
+
+Alias for `BlackAndWhite`. Functionally identical.
+
+### Constructor
+
+```python
+Grayscale()
+```
+
+### Example
+
+```python
+from movielite import VideoClip, vfx
+
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Grayscale())  # Same as BlackAndWhite()
+```
+
+Source: `src/movielite/vfx/color.py:138-141`
+
+---
+
+## Sepia
+
+Apply a vintage sepia tone effect to the clip.
+
+### Constructor
+
+```python
+Sepia(intensity: float = 1.0)
+```
+
+<ParamField path="intensity" type="float" default="1.0">
+  Intensity of the sepia effect. Values:
+  - `0.0` = no effect (original colors)
+  - `1.0` = full sepia tone
+  - Values between 0 and 1 blend between original and sepia
+  
+  Automatically clamped to [0.0, 1.0].
+</ParamField>
+
+### Examples
+
+```python
+from movielite import VideoClip, vfx
+
+# Full sepia tone
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Sepia(intensity=1.0))
+
+# Subtle sepia effect
+clip.add_effect(vfx.Sepia(intensity=0.5))
+```
+
+### Technical Details
+
+Applies a sepia transformation matrix to convert RGB values:
+
+```
+B = 0.131×R + 0.534×G + 0.272×B
+G = 0.168×R + 0.686×G + 0.349×B
+R = 0.189×R + 0.769×G + 0.393×B
+```
+
+When intensity < 1.0, blends between original and sepia using `cv2.addWeighted`.
+
+Source: `src/movielite/vfx/color.py:143-188`
+
+---
+
+## Combining Color Effects
+
+Multiple color effects can be combined for creative results:
+
+```python
+from movielite import VideoClip, vfx
+
+clip = VideoClip("input.mp4")
+
+# Cinematic look
+clip.add_effect(vfx.Saturation(1.3))  # Boost colors
+clip.add_effect(vfx.Contrast(1.2))    # Increase contrast
+clip.add_effect(vfx.Brightness(0.9))  # Slightly darker
+
+# Vintage look
+clip.add_effect(vfx.Sepia(intensity=0.7))
+clip.add_effect(vfx.Contrast(0.8))    # Reduce contrast
+
+# High-contrast B&W
+clip.add_effect(vfx.BlackAndWhite())
+clip.add_effect(vfx.Contrast(1.5))
+```
+
+## Color Grading Workflows
+
+### Warm and Vibrant
+
+```python
+clip.add_effect(vfx.Saturation(1.4))
+clip.add_effect(vfx.Brightness(1.1))
+clip.add_effect(vfx.Contrast(1.2))
+```
+
+### Cool and Muted
+
+```python
+clip.add_effect(vfx.Saturation(0.7))
+clip.add_effect(vfx.Brightness(0.95))
+clip.add_effect(vfx.Contrast(1.1))
+```
+
+### Vintage Film
+
+```python
+clip.add_effect(vfx.Sepia(intensity=0.8))
+clip.add_effect(vfx.Contrast(0.9))
+clip.add_effect(vfx.Saturation(0.8))
+```
+
+## Performance Considerations
+
+<Info>
+`Brightness` and `Contrast` use Numba JIT compilation for optimized pixel-level operations. The first frame processed will compile the function, which may add a small delay. Subsequent frames will be very fast.
+</Info>
+
+<Note>
+`Saturation` and `Sepia` use OpenCV's color space conversions and matrix transformations, which are highly optimized but slightly slower than pixel-level operations.
+</Note>
+
+## See Also
+
+- [Vignette](/api/vfx/vignette) - Darken edges for cinematic look
+- [Glitch Effects](/api/vfx/glitch) - Creative distortion effects
+- [Blur Effects](/api/vfx/blur) - Depth of field effects

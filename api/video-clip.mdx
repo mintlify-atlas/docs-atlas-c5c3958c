@@ -1,0 +1,683 @@
+---
+title: 'VideoClip'
+description: 'Load and process video files in BGR format (no alpha channel)'
+---
+
+## Overview
+
+`VideoClip` is the primary class for loading and processing standard video files. It's optimized for videos without transparency, loading frames in BGR format.
+
+<Note>
+For videos with alpha channel (transparency), use [`AlphaVideoClip`](/api/alpha-video-clip) instead. Note that AlphaVideoClip has a performance penalty (~33% more memory per frame) due to the additional alpha channel.
+</Note>
+
+Defined in: `src/movielite/video/video_clip.py:14`
+
+## Constructor
+
+```python
+VideoClip(path: str, start: float = 0, duration: Optional[float] = None, offset: float = 0)
+```
+
+<ParamField path="path" type="str" required>
+  Path to the video file. Supported formats: `.mp4`, `.mov`, `.avi`, `.mkv`, `.webm`, `.webp`, `.gif`
+</ParamField>
+
+<ParamField path="start" type="float" default="0">
+  Start time in the composition timeline (seconds)
+</ParamField>
+
+<ParamField path="duration" type="float" default="None">
+  Duration to use from the video. If `None`, uses the full video duration
+</ParamField>
+
+<ParamField path="offset" type="float" default="0">
+  Start offset within the video file (seconds). Use this to skip the first N seconds of the video
+</ParamField>
+
+### Raises
+
+- `ValueError`: If the file format is not supported
+- `FileNotFoundError`: If the video file doesn't exist
+- `RuntimeError`: If unable to read video metadata
+
+### Example
+
+```python
+from movielite import VideoClip
+
+# Load full video
+video = VideoClip("input.mp4")
+
+# Load video starting at 5 seconds in the timeline
+video = VideoClip("input.mp4", start=5)
+
+# Load only 10 seconds of the video
+video = VideoClip("input.mp4", duration=10)
+
+# Skip first 3 seconds of the source video
+video = VideoClip("input.mp4", offset=3)
+```
+
+## Properties
+
+### fps
+
+```python
+@property
+fps -> float
+```
+
+Get the frames per second of this video.
+
+**Returns:** Frame rate in frames per second
+
+**Example:**
+```python
+video = VideoClip("input.mp4")
+print(f"Video FPS: {video.fps}")  # e.g., "Video FPS: 30.0"
+```
+
+Defined in: `src/movielite/video/video_clip.py:197`
+
+---
+
+### audio
+
+```python
+@property
+audio -> AudioClip
+```
+
+Get the audio track of this video clip. The audio track is synchronized with the video's start, duration, and offset.
+
+**Returns:** `AudioClip` associated with this video
+
+**Example:**
+```python
+video = VideoClip("video.mp4", start=0, duration=10)
+video.audio.set_volume(0.5)  # Reduce volume to 50%
+```
+
+Defined in: `src/movielite/video/video_clip.py:202`
+
+---
+
+### Inherited Properties
+
+<Accordion title="Properties inherited from MediaClip and GraphicClip">
+
+**From MediaClip:**
+- `start` (float): Start time in the composition
+- `duration` (float): Duration in the timeline (accounts for speed)
+- `end` (float): End time in the composition
+- `speed` (float): Playback speed multiplier
+
+**From GraphicClip:**
+- `size` (Tuple[int, int]): Video dimensions (width, height)
+- `position` (Callable): Position function or static tuple
+- `opacity` (Callable): Opacity function or static value
+- `scale` (Callable): Scale function or static value
+
+</Accordion>
+
+## Methods
+
+### subclip
+
+```python
+subclip(start: float, end: float) -> VideoClip
+```
+
+Extract a portion of this video clip.
+
+<ParamField path="start" type="float" required>
+  Start time within this clip (seconds, relative to clip start)
+</ParamField>
+
+<ParamField path="end" type="float" required>
+  End time within this clip (seconds, relative to clip start)
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  New VideoClip instance representing the extracted portion
+</ResponseField>
+
+**Raises:**
+- `ValueError`: If the range is invalid (start < 0, end > duration, or start >= end)
+
+**Example:**
+```python
+video = VideoClip("input.mp4")  # 60 second video
+segment = video.subclip(5, 15)  # Extract seconds 5-15 (10 second clip)
+```
+
+Defined in: `src/movielite/video/video_clip.py:137`
+
+---
+
+### set_start
+
+```python
+set_start(start: float) -> Self
+```
+
+Set when this clip begins in the composition timeline. Also updates the audio track's start time.
+
+<ParamField path="start" type="float" required>
+  Start time in seconds (must be >= 0)
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+video = VideoClip("clip.mp4")
+video.set_start(5.0)  # Clip starts at 5 seconds
+```
+
+Defined in: `src/movielite/video/video_clip.py:219`
+
+---
+
+### set_duration
+
+```python
+set_duration(duration: float) -> Self
+```
+
+Set the duration of this clip. Also updates the audio track's duration.
+
+<ParamField path="duration" type="float" required>
+  Duration in seconds (must be > 0)
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+video = VideoClip("clip.mp4")
+video.set_duration(10.0)  # Use only first 10 seconds
+```
+
+Defined in: `src/movielite/video/video_clip.py:234`
+
+---
+
+### set_offset
+
+```python
+set_offset(offset: float) -> Self
+```
+
+Set the offset within the source video file. Also updates the audio track's offset.
+
+<ParamField path="offset" type="float" required>
+  Offset in seconds (where to start reading from the file)
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+video = VideoClip("clip.mp4")
+video.set_offset(3.0)  # Skip first 3 seconds of source
+```
+
+Defined in: `src/movielite/video/video_clip.py:249`
+
+---
+
+### set_end
+
+```python
+set_end(end: float) -> Self
+```
+
+Set when this clip ends in the composition. Adjusts duration to match, accounting for speed.
+
+<ParamField path="end" type="float" required>
+  End time in seconds (must be > start)
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+video = VideoClip("clip.mp4").set_start(5).set_end(15)  # 10 second duration
+```
+
+Defined in: `src/movielite/video/video_clip.py:264`
+
+---
+
+### set_speed
+
+```python
+set_speed(speed: float) -> Self
+```
+
+Set the playback speed of this video clip. Also updates the audio track's speed.
+
+<ParamField path="speed" type="float" required>
+  Speed multiplier (must be > 0)
+  - `1.0` = normal speed
+  - `2.0` = twice as fast
+  - `0.5` = half speed (slow motion)
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+video = VideoClip("clip.mp4")
+video.set_speed(2.0)  # Play at 2x speed
+```
+
+Defined in: `src/movielite/video/video_clip.py:280`
+
+---
+
+### loop
+
+```python
+loop(enabled: bool = True) -> Self
+```
+
+Enable or disable looping for this video clip. When enabled, the video restarts from the beginning when it reaches the end.
+
+<ParamField path="enabled" type="bool" default="True">
+  Whether to enable looping
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+video = VideoClip("short_clip.mp4", duration=10)
+video.loop(True)  # Loop the video
+```
+
+Defined in: `src/movielite/video/video_clip.py:298`
+
+---
+
+### set_position
+
+```python
+set_position(value: Union[Callable[[float], Tuple[int, int]], Tuple[int, int]]) -> Self
+```
+
+Set the position of the clip on the canvas.
+
+<ParamField path="value" type="Union[Tuple[int, int], Callable]" required>
+  Either a static tuple `(x, y)` or a function that takes time and returns `(x, y)`
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+# Static position
+video.set_position((100, 50))
+
+# Animated position (moving from left to right)
+video.set_position(lambda t: (int(t * 100), 50))
+```
+
+Defined in: `src/movielite/core/graphic_clip.py:44`
+
+---
+
+### set_opacity
+
+```python
+set_opacity(value: Union[Callable[[float], float], float]) -> Self
+```
+
+Set the opacity of the clip.
+
+<ParamField path="value" type="Union[float, Callable]" required>
+  Either a float (0.0-1.0) or a function that takes time and returns opacity
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+# Static opacity
+video.set_opacity(0.5)  # 50% transparent
+
+# Animated opacity (fade in)
+video.set_opacity(lambda t: min(1.0, t / 2.0))
+```
+
+Defined in: `src/movielite/core/graphic_clip.py:57`
+
+---
+
+### set_scale
+
+```python
+set_scale(value: Union[Callable[[float], float], float]) -> Self
+```
+
+Set the scale of the clip.
+
+<ParamField path="value" type="Union[float, Callable]" required>
+  Either a float or a function that takes time and returns scale multiplier
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+# Static scale
+video.set_scale(0.5)  # Half size
+
+# Animated scale (zoom in)
+video.set_scale(lambda t: 0.5 + t * 0.1)
+```
+
+Defined in: `src/movielite/core/graphic_clip.py:70`
+
+---
+
+### set_rotation
+
+```python
+set_rotation(
+    angle: Union[Callable[[float], float], float],
+    unit: str = "deg",
+    resample: str = "bilinear",
+    expand: bool = True,
+    center: Optional[Tuple[float, float]] = None,
+    translate: Optional[Tuple[float, float]] = None,
+    bg_color: Optional[Tuple[int, ...]] = None
+) -> Self
+```
+
+Rotate the video clip.
+
+<ParamField path="angle" type="Union[float, Callable]" required>
+  Rotation angle (static or animated). Positive values rotate counter-clockwise
+</ParamField>
+
+<ParamField path="unit" type="str" default="deg">
+  Unit of the angle: `"deg"` (degrees) or `"rad"` (radians)
+</ParamField>
+
+<ParamField path="resample" type="str" default="bilinear">
+  Resampling filter: `"nearest"`, `"bilinear"`, or `"bicubic"`
+</ParamField>
+
+<ParamField path="expand" type="bool" default="True">
+  If True, expands canvas to fit rotated content without clipping
+</ParamField>
+
+<ParamField path="center" type="Optional[Tuple[float, float]]" default="None">
+  Center of rotation as (x, y) in pixels. If None, uses frame center
+</ParamField>
+
+<ParamField path="translate" type="Optional[Tuple[float, float]]" default="None">
+  Post-rotation translation as (dx, dy) in pixels
+</ParamField>
+
+<ParamField path="bg_color" type="Optional[Tuple[int, ...]]" default="None">
+  Background color for areas outside rotated frame
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+# Static rotation
+video.set_rotation(45)  # 45 degrees counter-clockwise
+
+# Animated rotation
+video.set_rotation(lambda t: t * 90)  # 90 degrees per second
+```
+
+Defined in: `src/movielite/core/graphic_clip.py:83`
+
+---
+
+### set_size
+
+```python
+set_size(width: Optional[int] = None, height: Optional[int] = None) -> Self
+```
+
+Resize the video, maintaining aspect ratio if only one dimension is provided.
+
+<ParamField path="width" type="Optional[int]" default="None">
+  Target width in pixels
+</ParamField>
+
+<ParamField path="height" type="Optional[int]" default="None">
+  Target height in pixels
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+<Note>
+The resize is applied lazily (only when needed during rendering). At least one dimension must be provided.
+</Note>
+
+**Example:**
+```python
+# Resize to specific dimensions
+video.set_size(width=1280, height=720)
+
+# Resize maintaining aspect ratio
+video.set_size(width=1920)  # Height calculated automatically
+video.set_size(height=1080)  # Width calculated automatically
+```
+
+Defined in: `src/movielite/core/graphic_clip.py:134`
+
+---
+
+### set_mask
+
+```python
+set_mask(mask: GraphicClip) -> Self
+```
+
+Apply a mask to control which pixels are visible.
+
+<ParamField path="mask" type="GraphicClip" required>
+  A GraphicClip to use as mask (lighter pixels = more visible)
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+from movielite import ImageClip
+
+video = VideoClip("clip.mp4")
+mask = ImageClip("mask.png")
+video.set_mask(mask)
+```
+
+Defined in: `src/movielite/core/graphic_clip.py:169`
+
+---
+
+### add_effect
+
+```python
+add_effect(effect: GraphicEffect) -> Self
+```
+
+Apply a visual effect to this clip.
+
+<ParamField path="effect" type="GraphicEffect" required>
+  A visual effect instance from `movielite.vfx`
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+from movielite import vfx
+
+video = VideoClip("clip.mp4")
+video.add_effect(vfx.FadeIn(2.0)).add_effect(vfx.FadeOut(1.5))
+video.add_effect(vfx.Blur(radius=5))
+```
+
+Defined in: `src/movielite/core/graphic_clip.py:256`
+
+---
+
+### add_transition
+
+```python
+add_transition(next_clip: GraphicClip, transition: Transition) -> Self
+```
+
+Apply a transition effect between this clip and another.
+
+<ParamField path="next_clip" type="GraphicClip" required>
+  The clip to transition to/from
+</ParamField>
+
+<ParamField path="transition" type="Transition" required>
+  A transition effect instance from `movielite.vtx`
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+**Example:**
+```python
+from movielite import vtx
+
+clip1 = VideoClip("first.mp4")
+clip2 = VideoClip("second.mp4", start=clip1.duration)
+clip1.add_transition(clip2, vtx.CrossFade(0.5))
+```
+
+Defined in: `src/movielite/core/graphic_clip.py:273`
+
+---
+
+### add_transform
+
+```python
+add_transform(callback: Callable[[np.ndarray, float], np.ndarray]) -> Self
+```
+
+Apply a custom frame transformation at render time. Multiple transformations can be chained.
+
+<ParamField path="callback" type="Callable[[np.ndarray, float], np.ndarray]" required>
+  Function that takes (frame, time) and returns transformed frame (BGR/BGRA uint8)
+</ParamField>
+
+<ResponseField name="return" type="VideoClip">
+  Self for method chaining
+</ResponseField>
+
+<Warning>
+The frame received is NOT a copy. Modifications must be done carefully. Always return a uint8 BGR/BGRA array.
+</Warning>
+
+**Example:**
+```python
+import cv2
+
+def apply_sepia(frame, t):
+    kernel = np.array([[0.272, 0.534, 0.131],
+                       [0.349, 0.686, 0.168],
+                       [0.393, 0.769, 0.189]])
+    return cv2.transform(frame, kernel)
+
+video.add_transform(apply_sepia)
+```
+
+Defined in: `src/movielite/core/graphic_clip.py:225`
+
+---
+
+### close
+
+```python
+close() -> None
+```
+
+Close the video file and release resources.
+
+**Example:**
+```python
+video = VideoClip("input.mp4")
+# ... use the video ...
+video.close()  # Clean up
+```
+
+Defined in: `src/movielite/video/video_clip.py:126`
+
+## Complete Example
+
+```python
+from movielite import VideoClip, VideoWriter, vfx
+
+# Load video with offset
+video = VideoClip("input.mp4", start=0, duration=10, offset=2)
+
+# Apply transformations
+video.set_size(width=1280, height=720)
+video.set_position((0, 0))
+video.set_speed(1.5)  # 1.5x speed
+
+# Apply effects
+video.add_effect(vfx.FadeIn(1.0))
+video.add_effect(vfx.FadeOut(1.0))
+
+# Adjust audio
+video.audio.set_volume(0.8)
+
+# Extract a portion
+segment = video.subclip(2, 8)
+
+# Render to file
+writer = VideoWriter("output.mp4", fps=video.fps, size=(1280, 720))
+writer.add_clip(segment)
+writer.write()
+
+video.close()
+```
+
+## See Also
+
+- [`AlphaVideoClip`](/api/alpha-video-clip) - For videos with transparency
+- [`AudioClip`](/api/audio-clip) - For audio manipulation
+- [`VideoWriter`](/api/video-writer) - For rendering videos

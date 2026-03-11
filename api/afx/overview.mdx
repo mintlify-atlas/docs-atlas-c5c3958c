@@ -1,0 +1,65 @@
+---
+title: 'Audio Effects Overview'
+description: 'Audio effects for modifying audio clips in MovieLite'
+---
+
+The `afx` module provides audio effects that can be applied to `AudioClip` instances to modify their audio characteristics.
+
+## Available Effects
+
+All audio effects inherit from the `AudioEffect` base class and implement the `apply()` method to modify audio clips.
+
+<CardGroup cols={2}>
+  <Card title="FadeIn" icon="volume-high" href="/api/afx/fade#fadein">
+    Gradually increase volume from 0 to original level
+  </Card>
+  <Card title="FadeOut" icon="volume-low" href="/api/afx/fade#fadeout">
+    Gradually decrease volume to 0 at the end
+  </Card>
+</CardGroup>
+
+## Base Class
+
+### AudioEffect
+
+Abstract base class for all audio effects.
+
+```python
+from movielite.afx.base import AudioEffect
+```
+
+#### Methods
+
+<ResponseField name="apply" type="method">
+  Apply this effect to an audio clip by modifying its properties.
+  
+  <ParamField path="clip" type="AudioClip" required>
+    The AudioClip to apply the effect to
+  </ParamField>
+  
+  **Returns:** `None` (modifies the clip in place)
+</ResponseField>
+
+## Usage
+
+Audio effects are applied to `AudioClip` instances using their `apply()` method:
+
+```python
+from movielite.audio import AudioClip
+from movielite.afx import FadeIn, FadeOut
+
+# Create an audio clip
+clip = AudioClip("audio.mp3")
+
+# Apply fade in effect (2 seconds)
+fade_in = FadeIn(duration=2.0)
+fade_in.apply(clip)
+
+# Apply fade out effect (1.5 seconds)
+fade_out = FadeOut(duration=1.5)
+fade_out.apply(clip)
+```
+
+<Info>
+  Effects work by adding transforms to the audio clip's processing pipeline. Multiple effects can be applied to the same clip.
+</Info>

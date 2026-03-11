@@ -1,0 +1,432 @@
+---
+title: "Clips"
+description: "Understanding the clip hierarchy and working with video, image, and text clips"
+---
+
+## Overview
+
+Clips are the fundamental building blocks of MovieLite. All clips inherit from a common base class hierarchy that provides timing, positioning, and transformation capabilities.
+
+## Clip Hierarchy
+
+MovieLite uses a three-tier inheritance structure:
+
+```
+MediaClip (base)
+├── AudioClip
+└── GraphicClip
+    ├── VideoClip
+    ├── AlphaVideoClip
+    ├── ImageClip
+    ├── TextClip
+    └── CompositeClip
+```
+
+### MediaClip
+
+The base class for all clips, providing common timing properties:
+
+- `start` - Start time in the composition (seconds)
+- `duration` - Duration in the timeline (accounts for speed)
+- `end` - End time (start + duration)
+- `speed` - Playback speed multiplier (1.0 = normal, 2.0 = 2x faster, 0.5 = half speed)
+
+<Info>
+The `duration` property automatically accounts for playback speed. For example, 20 seconds of source content at speed=2.0 results in 10 seconds in the timeline.
+</Info>
+
+### GraphicClip
+
+Extends `MediaClip` with visual properties and rendering capabilities:
+
+- `position` - Position in the frame (x, y)
+- `opacity` - Transparency (0.0 to 1.0)
+- `scale` - Size multiplier
+- `size` - Dimensions (width, height)
+
+All visual clips inherit from `GraphicClip` and can use transformations, effects, and masks.
+
+## VideoClip
+
+Loads and processes video files frame-by-frame. Optimized for videos without transparency (BGR format).
+
+### Basic Usage
+
+```python
+from movielite import VideoClip
+
+# Load a video clip
+clip = VideoClip(
+    path="video.mp4",
+    start=0,        # Start at 0 seconds in composition
+    duration=10,    # Use 10 seconds of video
+    offset=5        # Start reading from 5 seconds into the file
+)
+```
+
+### Common Properties & Methods
+
+```python
+# Timing adjustments
+clip.set_start(5.0)          # Start at 5 seconds
+clip.set_duration(10.0)      # Set to 10 seconds
+clip.set_end(15.0)           # End at 15 seconds (adjusts duration)
+clip.set_speed(2.0)          # Play at 2x speed
+clip.set_offset(3.0)         # Start reading from 3s in the file
+
+# Visual transformations
+clip.set_position((100, 50)) # Position at (100, 50)
+clip.set_opacity(0.8)        # 80% opacity
+clip.set_scale(1.5)          # Scale to 150%
+clip.set_size(width=1280)    # Resize (maintains aspect ratio)
+clip.set_size(1920, 1080)    # Resize to specific dimensions
+
+# Advanced features
+clip.set_rotation(45)        # Rotate 45 degrees
+clip.loop(True)              # Enable looping
+
+# Access metadata
+print(clip.fps)              # Frame rate
+print(clip.size)             # Dimensions (width, height)
+print(clip.audio)            # Associated AudioClip
+```
+
+### Dynamic Properties
+
+Position, opacity, and scale can accept functions for time-based animations:
+
+```python
+# Fade in from left to right
+clip.set_position(lambda t: (t * 100, 50))
+
+# Pulsing opacity
+import math
+clip.set_opacity(lambda t: 0.5 + 0.5 * math.sin(t * math.pi))
+
+# Accelerating zoom
+clip.set_scale(lambda t: 1.0 + (t ** 2) * 0.1)
+```
+
+### Subclips
+
+Extract portions of a video:
+
+```python
+# Extract seconds 2-7 from the clip
+subclip = clip.subclip(start=2.0, end=7.0)
+```
+
+<Note>
+Subclips share the same source file but have independent transformations and effects.
+</Note>
+
+### Audio Access
+
+Every `VideoClip` has an associated `AudioClip` that can be manipulated independently:
+
+```python
+# Access and modify audio
+clip.audio.set_volume(0.5)
+
+from movielite import afx
+clip.audio.add_effect(afx.FadeIn(2.0))
+```
+
+## AlphaVideoClip
+
+Handles videos with transparency (alpha channel). Uses FFmpeg for BGRA format extraction.
+
+<Warning>
+AlphaVideoClip has ~33% more memory overhead per frame due to the alpha channel. Only use when transparency is required.
+</Warning>
+
+```python
+from movielite import AlphaVideoClip
+
+# Load video with alpha channel support
+alpha_clip = AlphaVideoClip(
+    path="transparent_video.webm",
+    start=0,
+    duration=5
+)
+```
+
+Supports the same API as `VideoClip`:
+- Source: `src/movielite/video/alpha_video_clip.py:1`
+- Source: `src/movielite/video/video_clip.py:1`
+
+## ImageClip
+
+Displays a static image for a specified duration.
+
+### Loading from File
+
+```python
+from movielite import ImageClip
+
+# Load from file
+image = ImageClip(
+    source="photo.png",
+    start=0,
+    duration=5.0
+)
+```
+
+### Creating from Array
+
+```python
+import numpy as np
+
+# Create from numpy array (RGB or RGBA)
+array = np.zeros((1080, 1920, 3), dtype=np.uint8)
+image = ImageClip(source=array, start=0, duration=3.0)
+```
+
+### Solid Color Backgrounds
+
+```python
+# Create a solid color image
+background = ImageClip.from_color(
+    color=(255, 0, 0),      # RGB red
+    size=(1920, 1080),
+    start=0,
+    duration=10.0
+)
+
+# With alpha channel
+background = ImageClip.from_color(
+    color=(255, 0, 0, 128), # RGBA (semi-transparent red)
+    size=(1920, 1080),
+    start=0,
+    duration=10.0
+)
+```
+
+<Tip>
+ImageClip automatically drops the alpha channel if all pixels are fully opaque, saving memory.
+</Tip>
+
+### Optimization
+
+Unlike video clips, `ImageClip` caches the resized image to avoid redundant processing:
+
+```python
+image = ImageClip("large_image.png", start=0, duration=10)
+image.set_size(width=1280)  # Resize happens once, cached
+```
+
+Source: `src/movielite/image/image_clip.py:1`
+
+## TextClip
+
+Renders text using the [pictex](https://github.com/pictex/pictex) library with extensive styling support.
+
+### Basic Usage
+
+```python
+from movielite import TextClip
+
+# Simple text with default styling
+text = TextClip(
+    text="Hello World!",
+    start=0,
+    duration=5.0
+)
+```
+
+### Custom Styling
+
+```python
+from pictex import Canvas, LinearGradient, Shadow
+
+# Create styled canvas
+canvas = (
+    Canvas()
+    .font_family("Arial")
+    .font_size(60)
+    .color("white")
+    .padding(20)
+    .background_color(LinearGradient(["#2C3E50", "#FD746C"]))
+    .border_radius(10)
+)
+
+# Create text with styling
+text = TextClip(
+    text="Styled Text",
+    duration=3,
+    canvas=canvas
+)
+```
+
+### Advanced Styling Examples
+
+```python
+# Gradient text with shadow
+canvas = (
+    Canvas()
+    .font_size(80)
+    .font_weight("bold")
+    .color(LinearGradient(["#FF6B6B", "#4ECDC4"], angle=45))
+    .text_shadow(Shadow(offset_x=2, offset_y=2, blur=4, color="#000000"))
+    .background_color("transparent")
+    .padding(30)
+)
+
+text = TextClip("Epic Title", duration=5, canvas=canvas)
+```
+
+<Note>
+TextClip requires the `pictex` library: `pip install pictex`
+</Note>
+
+### Text Properties
+
+```python
+# Access rendered text properties
+print(text.text)      # "Epic Title"
+print(text.size)      # (width, height) of rendered text
+```
+
+Source: `src/movielite/image/text_clip.py:1`
+
+## Common Transformations
+
+All `GraphicClip` subclasses support these transformations:
+
+### Positioning
+
+```python
+# Static position
+clip.set_position((100, 200))
+
+# Animated position (moving right)
+clip.set_position(lambda t: (100 + t * 50, 200))
+
+# Centered position (requires knowing canvas size)
+canvas_w, canvas_h = 1920, 1080
+clip_w, clip_h = clip.size
+clip.set_position((
+    (canvas_w - clip_w) // 2,
+    (canvas_h - clip_h) // 2
+))
+```
+
+### Opacity
+
+```python
+# Static opacity
+clip.set_opacity(0.5)
+
+# Fade in over time
+clip.set_opacity(lambda t: min(1.0, t / 2.0))
+```
+
+### Scale
+
+```python
+# Static scale
+clip.set_scale(1.5)  # 150% of original size
+
+# Breathing animation
+import math
+clip.set_scale(lambda t: 1.0 + 0.1 * math.sin(t * 2 * math.pi))
+```
+
+### Rotation
+
+```python
+# Static rotation
+clip.set_rotation(45)  # 45 degrees
+
+# Continuous rotation
+clip.set_rotation(lambda t: t * 90)  # 90 degrees per second
+
+# Advanced rotation options
+clip.set_rotation(
+    angle=180,
+    unit="deg",           # or "rad" for radians
+    expand=False,         # Don't expand canvas (may clip)
+    center=(100, 100),    # Rotate around this point
+    resample="bicubic"    # Higher quality
+)
+```
+
+### Resizing
+
+```python
+# Resize maintaining aspect ratio
+clip.set_size(width=1280)
+clip.set_size(height=720)
+
+# Resize to exact dimensions (may distort)
+clip.set_size(1920, 1080)
+```
+
+## Masks
+
+Apply masks to control visibility per-pixel:
+
+```python
+from movielite import ImageClip, VideoClip
+
+# Create mask (white = visible, black = invisible)
+mask = ImageClip("mask.png", start=0, duration=10)
+
+# Apply mask to video
+video = VideoClip("video.mp4", start=0, duration=10)
+video.set_mask(mask)
+```
+
+<Info>
+Masks use the alpha channel if available, otherwise convert to grayscale where brightness determines opacity.
+</Info>
+
+## Method Chaining
+
+All setter methods return `self` for convenient chaining:
+
+```python
+clip = (
+    VideoClip("video.mp4", start=0, duration=10)
+    .set_position((100, 100))
+    .set_scale(1.2)
+    .set_opacity(0.9)
+    .set_speed(1.5)
+)
+```
+
+## Performance Considerations
+
+<CardGroup cols={2}>
+  <Card title="VideoClip vs AlphaVideoClip" icon="video">
+    Use `VideoClip` for opaque videos (BGR format). Only use `AlphaVideoClip` when transparency is required, as it has 33% more memory overhead.
+  </Card>
+  
+  <Card title="Image Caching" icon="image">
+    `ImageClip` caches resized images, making it efficient for static content. Resize operations happen only once.
+  </Card>
+  
+  <Card title="Frame Transforms" icon="wand-magic-sparkles">
+    Transformations like position, scale, and opacity are applied during rendering. Chain them freely without performance penalty.
+  </Card>
+  
+  <Card title="Speed Control" icon="gauge">
+    Using `set_speed()` affects both video and audio playback, maintaining synchronization automatically.
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Effects" icon="sparkles" href="/concepts/effects">
+    Learn how to apply visual effects to clips
+  </Card>
+  
+  <Card title="Video Writer" icon="file-video" href="/concepts/video-writer">
+    Understand composition and rendering
+  </Card>
+  
+  <Card title="Audio Mixing" icon="volume-high" href="/concepts/audio-mixing">
+    Work with audio tracks
+  </Card>
+</CardGroup>

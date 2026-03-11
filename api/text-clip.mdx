@@ -1,0 +1,361 @@
+---
+title: 'TextClip'
+description: 'Render and display text using the pictex library'
+---
+
+## Overview
+
+`TextClip` renders text as an image using the [pictex](https://github.com/aimglow/pictex) library, which provides rich text styling capabilities including gradients, shadows, borders, and custom fonts.
+
+<Info>
+TextClip requires the `pictex` library. Install it with: `pip install pictex`
+</Info>
+
+Defined in: `src/movielite/image/text_clip.py:8`
+
+## Constructor
+
+```python
+TextClip(text: str, start: float = 0, duration: float = 5.0, canvas: Optional[Canvas] = None)
+```
+
+<ParamField path="text" type="str" required>
+  The text content to render
+</ParamField>
+
+<ParamField path="start" type="float" default="0">
+  Start time in the composition (seconds)
+</ParamField>
+
+<ParamField path="duration" type="float" default="5.0">
+  How long to display the text (seconds)
+</ParamField>
+
+<ParamField path="canvas" type="Optional[Canvas]" default="None">
+  A pictex Canvas instance with styling configured. If None, uses default styling (48px white text on transparent background)
+</ParamField>
+
+### Raises
+
+- `ImportError`: If pictex is not installed
+
+### Example
+
+```python
+from movielite import TextClip
+from pictex import Canvas, LinearGradient, Shadow
+
+# Simple text with default styling
+text = TextClip("Hello World", duration=5)
+
+# Styled text with custom canvas
+canvas = (
+    Canvas()
+    .font_family("Arial")
+    .font_size(60)
+    .color("white")
+    .padding(20)
+    .background_color(LinearGradient(["#FF6B6B", "#4ECDC4"]))
+    .border_radius(10)
+    .text_shadows(Shadow(offset=(3, 3), blur_radius=5, color="black"))
+)
+text = TextClip("Styled Title", duration=3, canvas=canvas)
+```
+
+## Properties
+
+### text
+
+```python
+@property
+text -> str
+```
+
+Get the text content.
+
+**Returns:** The text string
+
+**Example:**
+```python
+text_clip = TextClip("Hello")
+print(text_clip.text)  # "Hello"
+```
+
+Defined in: `src/movielite/image/text_clip.py:85`
+
+---
+
+### Inherited Properties
+
+TextClip inherits properties from GraphicClip and MediaClip:
+
+- `size` (Tuple[int, int]): Text image dimensions (width, height)
+- `start` (float): Start time in the composition
+- `duration` (float): How long the text is displayed
+- `end` (float): End time in the composition
+- `position` (Callable): Position function or static tuple
+- `opacity` (Callable): Opacity function or static value
+- `scale` (Callable): Scale function or static value
+
+## Methods
+
+TextClip inherits all methods from [`ImageClip`](/api/image-clip) since rendered text is treated as a static image:
+
+- `set_position(value)` - Set position on canvas
+- `set_opacity(value)` - Set opacity
+- `set_scale(value)` - Set scale
+- `set_rotation(angle, ...)` - Set rotation
+- `set_size(width, height)` - Resize text
+- `set_mask(mask)` - Apply mask
+- `add_effect(effect)` - Add visual effect
+- `add_transform(callback)` - Add custom transform
+
+See [`ImageClip`](/api/image-clip) for detailed documentation.
+
+## Pictex Canvas Styling
+
+<Accordion title="Available Canvas styling options">
+
+The `Canvas` class from pictex provides extensive styling options:
+
+### Typography
+- `.font_family(name)` - Set font (e.g., "Arial", "Helvetica")
+- `.font_size(size)` - Font size in pixels
+- `.font_weight(weight)` - Font weight ("normal", "bold", etc.)
+- `.line_height(height)` - Line height multiplier
+
+### Colors & Fills
+- `.color(color)` - Text color (hex, name, or RGB)
+- `.background_color(color)` - Background color or gradient
+- `.border_color(color)` - Border color
+
+### Effects
+- `.text_shadows(shadow)` - Add text shadows
+- `.border_radius(radius)` - Rounded corners
+- `.padding(padding)` - Internal padding
+
+### Gradients
+```python
+from pictex import LinearGradient, RadialGradient
+
+# Linear gradient
+LinearGradient(["#FF6B6B", "#4ECDC4"], angle=45)
+
+# Radial gradient
+RadialGradient(["#FF6B6B", "#4ECDC4"])
+```
+
+### Shadows
+```python
+from pictex import Shadow
+
+Shadow(offset=(2, 2), blur_radius=4, color="black")
+```
+
+</Accordion>
+
+## Complete Examples
+
+### Example 1: Simple Title Card
+
+```python
+from movielite import TextClip, VideoWriter, vfx
+from pictex import Canvas
+
+# Create styled title
+canvas = (
+    Canvas()
+    .font_size(80)
+    .color("white")
+    .background_color("transparent")
+)
+
+title = TextClip("My Video Title", start=0, duration=3, canvas=canvas)
+title.set_position((960 - title.size[0] // 2, 100))  # Center horizontally
+title.add_effect(vfx.FadeIn(0.5))
+title.add_effect(vfx.FadeOut(0.5))
+
+writer = VideoWriter("title.mp4", fps=30, size=(1920, 1080))
+writer.add_clip(title)
+writer.write()
+```
+
+### Example 2: Gradient Text with Shadow
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas, LinearGradient, Shadow
+
+video = VideoClip("background.mp4")
+
+# Gradient text with drop shadow
+canvas = (
+    Canvas()
+    .font_family("Arial")
+    .font_size(90)
+    .color("white")
+    .padding(30)
+    .background_color(LinearGradient(["#FF6B6B", "#FF8E53"], angle=45))
+    .border_radius(15)
+    .text_shadows(Shadow(offset=(4, 4), blur_radius=6, color="rgba(0,0,0,0.5)"))
+)
+
+title = TextClip("EPIC TITLE", start=1, duration=4, canvas=canvas)
+title.set_position((960 - title.size[0] // 2, 200))
+
+writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, title])
+writer.write()
+```
+
+### Example 3: Animated Text Position
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+import math
+
+video = VideoClip("input.mp4")
+
+canvas = Canvas().font_size(70).color("yellow").background_color("transparent")
+text = TextClip("Bouncing Text!", start=0, duration=6, canvas=canvas)
+
+# Bounce animation
+def bounce_position(t):
+    x = 960 - text.size[0] // 2  # Center horizontally
+    # Bounce amplitude decreases over time
+    amplitude = 200 * (1.0 - t / 6.0)
+    y = int(540 - text.size[1] // 2 - abs(math.sin(t * 3 * math.pi)) * amplitude)
+    return (x, y)
+
+text.set_position(bounce_position)
+
+writer = VideoWriter("bouncing.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+```
+
+### Example 4: Multiple Text Layers
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter, vfx
+from pictex import Canvas, LinearGradient
+
+video = VideoClip("background.mp4")
+
+# Title (large, gradient)
+canvas_title = (
+    Canvas()
+    .font_size(90)
+    .color("white")
+    .background_color(LinearGradient(["#FF6B6B", "#FF8E53"]))
+    .padding(20)
+    .border_radius(10)
+)
+title = TextClip("Main Title", start=0, duration=3, canvas=canvas_title)
+title.set_position((960 - title.size[0] // 2, 100))
+title.add_effect(vfx.FadeIn(0.5))
+title.add_effect(vfx.FadeOut(0.5))
+
+# Subtitle (smaller, plain)
+canvas_sub = Canvas().font_size(50).color("#CCCCCC").background_color("transparent")
+subtitle = TextClip("Subtitle text here", start=1, duration=4, canvas=canvas_sub)
+subtitle.set_position((960 - subtitle.size[0] // 2, 220))
+subtitle.add_effect(vfx.FadeIn(0.5))
+subtitle.add_effect(vfx.FadeOut(0.5))
+
+writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, title, subtitle])
+writer.write()
+```
+
+### Example 5: Sliding Text Animation
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("input.mp4")
+
+canvas = Canvas().font_size(60).color("white").padding(20).background_color("#333333")
+text = TextClip("Sliding In!", start=0, duration=5, canvas=canvas)
+
+# Slide in from left over 2 seconds, then stay centered
+def animated_position(t):
+    if t < 2.0:
+        # Slide in from left
+        x = int(-text.size[0] + (text.size[0] + 960) * (t / 2.0))
+    else:
+        # Stay centered
+        x = 960 - text.size[0] // 2
+    y = 540 - text.size[1] // 2
+    return (x, y)
+
+text.set_position(animated_position)
+
+writer = VideoWriter("sliding.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+```
+
+### Example 6: Zoom Text Effect
+
+```python
+from movielite import TextClip, VideoWriter, vfx
+from pictex import Canvas
+
+canvas = Canvas().font_size(70).color("white").background_color("transparent")
+text = TextClip("ZOOM IN", start=0, duration=3, canvas=canvas)
+text.set_position((960 - text.size[0] // 2, 540 - text.size[1] // 2))
+
+# Zoom from 0.5x to 1.5x over 3 seconds
+text.set_scale(lambda t: 0.5 + (1.0 * (t / 3.0)))
+text.add_effect(vfx.FadeIn(0.3))
+
+writer = VideoWriter("zoom.mp4", fps=30, size=(1920, 1080))
+writer.add_clip(text)
+writer.write()
+```
+
+## Default Canvas Styling
+
+When no canvas is provided, TextClip uses this default styling (defined in `text_clip.py:75`):
+
+```python
+Canvas()
+    .font_size(48)
+    .color("white")
+    .background_color("transparent")
+    .padding(10)
+```
+
+## Performance Notes
+
+<Info>
+**Text Rendering:** Text is rendered once during initialization and cached as an image. This means text styling cannot be animated (but position, opacity, scale, and rotation can be).
+
+**Memory Efficient:** Since the text is pre-rendered, displaying it has the same performance as an ImageClip.
+</Info>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Titles & Credits" icon="text">
+    Create title cards and end credits
+  </Card>
+  <Card title="Subtitles" icon="closed-captioning">
+    Add subtitles and captions to videos
+  </Card>
+  <Card title="Lower Thirds" icon="rectangle-ad">
+    Display names and information overlays
+  </Card>
+  <Card title="Watermarks" icon="signature">
+    Add text-based watermarks
+  </Card>
+</CardGroup>
+
+## See Also
+
+- [pictex documentation](https://github.com/aimglow/pictex) - Full pictex styling reference
+- [`ImageClip`](/api/image-clip) - For static images
+- [`VideoWriter`](/api/video-writer) - For rendering compositions

@@ -1,0 +1,466 @@
+---
+title: "Video Writer"
+description: "Composing and rendering videos with VideoWriter"
+---
+
+## Overview
+
+The `VideoWriter` class is responsible for composing multiple clips into a final video. It handles:
+
+- Rendering visual clips (video, image, text, composite)
+- Mixing audio tracks
+- Encoding the output with configurable quality
+- Multi-process rendering for performance
+
+## Basic Usage
+
+```python
+from movielite import VideoWriter, VideoClip, ImageClip
+
+# Create clips
+clip1 = VideoClip("intro.mp4", start=0, duration=5)
+clip2 = ImageClip("title.png", start=5, duration=3)
+
+# Create writer and add clips
+writer = VideoWriter(
+    output_path="output.mp4",
+    fps=30,
+    size=(1920, 1080)
+)
+
+writer.add_clip(clip1)
+writer.add_clip(clip2)
+
+# Render the video
+writer.write()
+```
+
+## VideoWriter Configuration
+
+### Constructor Parameters
+
+```python
+from movielite import VideoWriter
+
+writer = VideoWriter(
+    output_path="output.mp4",      # Required: output file path
+    fps=30,                         # Frame rate (default: 30)
+    size=(1920, 1080),             # Video dimensions (width, height)
+    duration=None                   # Total duration (auto-calculated if None)
+)
+```
+
+<Info>
+If `size` or `duration` are not specified, they are automatically calculated from the added clips.
+</Info>
+
+### Auto-Calculated Properties
+
+```python
+# Size: uses first clip's dimensions
+clip = VideoClip("video.mp4", start=0, duration=10)  # 1920x1080
+writer = VideoWriter("output.mp4", fps=30)  # size auto-set to 1920x1080
+writer.add_clip(clip)
+
+# Duration: maximum end time of all clips
+clip1 = VideoClip("video.mp4", start=0, duration=5)   # ends at 5s
+clip2 = ImageClip("image.png", start=3, duration=4)   # ends at 7s
+writer = VideoWriter("output.mp4", fps=30)  # duration auto-set to 7s
+writer.add_clips([clip1, clip2])
+```
+
+Source: `src/movielite/core/video_writer.py:28`
+
+## Adding Clips
+
+### Single Clip
+
+```python
+writer.add_clip(clip)
+```
+
+### Multiple Clips
+
+```python
+writer.add_clips([clip1, clip2, clip3])
+
+# Or with method chaining
+writer.add_clip(clip1).add_clip(clip2).add_clip(clip3)
+```
+
+### Clip Types
+
+VideoWriter automatically handles:
+
+- **GraphicClip** subclasses (VideoClip, ImageClip, TextClip, CompositeClip)
+- **AudioClip** instances
+- **Video audio** - automatically extracts and mixes audio from VideoClip instances
+
+```python
+from movielite import VideoClip, AudioClip, ImageClip
+
+video = VideoClip("video.mp4", start=0, duration=10)
+audio = AudioClip("music.mp3", start=0, duration=10)
+image = ImageClip("overlay.png", start=2, duration=5)
+
+writer.add_clips([video, audio, image])
+# Video's audio + separate audio track will be mixed
+# Image overlays on top of video
+```
+
+<Note>
+When you add a `VideoClip`, its audio track is automatically added to the audio mix. You don't need to manually add `video.audio`.
+</Note>
+
+## Rendering Process
+
+### Basic Rendering
+
+```python
+from movielite import VideoQuality
+
+writer.write(
+    processes=1,                        # Number of parallel processes
+    video_quality=VideoQuality.MIDDLE,  # Encoding quality
+    high_precision_blending=False       # Blending precision
+)
+```
+
+### Quality Presets
+
+MovieLite provides four quality levels:
+
+```python
+from movielite import VideoQuality
+
+# Low quality (fastest, largest file, ultrafast preset, CRF 23)
+writer.write(video_quality=VideoQuality.LOW)
+
+# Middle quality (balanced, veryfast preset, CRF 21)
+writer.write(video_quality=VideoQuality.MIDDLE)
+
+# High quality (slower, smaller file, fast preset, CRF 19)
+writer.write(video_quality=VideoQuality.HIGH)
+
+# Very high quality (slowest, smallest file, slow preset, CRF 17)
+writer.write(video_quality=VideoQuality.VERY_HIGH)
+```
+
+<Accordion title="Quality Preset Details">
+Quality presets control FFmpeg's libx264 encoder:
+
+| Quality | Preset | CRF | Use Case |
+|---------|--------|-----|----------|
+| LOW | ultrafast | 23 | Quick previews, draft renders |
+| MIDDLE | veryfast | 21 | General use, balanced quality/speed |
+| HIGH | fast | 19 | Production quality |
+| VERY_HIGH | slow | 17 | Maximum quality, archival |
+
+**CRF (Constant Rate Factor)**: Lower = better quality, larger files. Range: 0-51, typical: 17-28.
+
+Source: `src/movielite/core/video_writer.py:441`
+</Accordion>
+
+### Multi-Process Rendering
+
+Speed up rendering by distributing work across multiple CPU cores:
+
+```python
+import multiprocessing
+
+# Use all available cores
+num_cores = multiprocessing.cpu_count()
+writer.write(processes=num_cores)
+
+# Or specify custom count
+writer.write(processes=4)
+```
+
+<Warning>
+Multi-process rendering:
+- Creates temporary video segments
+- Merges them at the end
+- Requires more disk space during rendering
+- Best for videos longer than 30 seconds
+</Warning>
+
+### High Precision Blending
+
+For complex compositions with many transparent layers:
+
+```python
+writer.write(high_precision_blending=True)
+```
+
+<Info>
+**When to use high precision:**
+- Compositing 5+ layers with transparency
+- Subtle gradients and color blending
+- Professional color accuracy required
+
+**Trade-offs:**
+- Uses float32 (4x more memory than uint8)
+- Slower rendering
+- Prevents color banding artifacts
+</Info>
+
+Source: `src/movielite/core/video_writer.py:91`
+
+## Composition Mechanics
+
+### Layer Ordering
+
+Clips are composited in the order they're added:
+
+```python
+background = ImageClip("bg.png", start=0, duration=10)
+overlay = ImageClip("overlay.png", start=0, duration=10)
+
+# overlay appears ON TOP of background
+writer.add_clip(background)
+writer.add_clip(overlay)
+```
+
+<Tip>
+Add background/base layers first, then overlay elements on top.
+</Tip>
+
+### Render Pipeline
+
+For each frame, VideoWriter:
+
+1. **Identifies active clips** - clips where `start <= current_time < end`
+2. **Renders background** - first active clip rendered as base
+3. **Composites overlays** - remaining clips blended on top
+4. **Applies transformations** - position, scale, opacity, effects
+5. **Encodes frame** - writes to FFmpeg pipe
+
+```python
+# Pseudo-code of rendering process
+for frame_idx in range(total_frames):
+    current_time = frame_idx / fps
+    
+    # Get clips active at this time
+    active_clips = [clip for clip in clips 
+                   if clip.start <= current_time < clip.end]
+    
+    # Render background
+    frame = active_clips[0].render_as_background(current_time, width, height)
+    
+    # Composite overlays
+    for clip in active_clips[1:]:
+        frame = clip.render(frame, current_time)
+    
+    # Write to video
+    ffmpeg_process.stdin.write(frame.tobytes())
+```
+
+Source: `src/movielite/core/video_writer.py:162`
+
+### Alpha Blending
+
+Transparency is handled automatically:
+
+```python
+# Clip with alpha channel (BGRA)
+alpha_clip = ImageClip("transparent.png", start=0, duration=5)
+alpha_clip.set_opacity(0.5)  # Additional opacity on top of alpha
+
+# Blending formula (simplified)
+# output = foreground * alpha + background * (1 - alpha)
+```
+
+<Accordion title="Blending Implementation Details">
+MovieLite uses numba-compiled blending functions for performance:
+
+- **BGR background**: Blends RGB channels, alpha affects blend amount
+- **BGRA background**: Full alpha compositing with premultiplied alpha
+- **Mask support**: Additional mask layer multiplies with clip's alpha
+
+See: `src/movielite/core/graphic_clip.py:657` for implementation.
+</Accordion>
+
+## Audio Mixing
+
+VideoWriter automatically mixes all audio sources:
+
+```python
+video1 = VideoClip("video1.mp4", start=0, duration=10)
+video2 = VideoClip("video2.mp4", start=5, duration=10)
+music = AudioClip("music.mp3", start=0, duration=15)
+
+writer.add_clips([video1, video2, music])
+writer.write()  # All audio tracks mixed together
+```
+
+### Audio Mixing Process
+
+1. **Determine target format** - highest sample rate and channel count among clips
+2. **Resample if needed** - convert all clips to target sample rate
+3. **Channel conversion** - mono to stereo or stereo to mono as needed
+4. **Mix samples** - sum overlapping audio, accounting for clip timing and speed
+5. **Normalize** - prevent clipping by normalizing if peak > 1.0
+6. **Encode** - convert to AAC and mux with video
+
+```python
+# Audio is processed in chunks for memory efficiency
+for audio_clip in audio_clips:
+    for samples, chunk_start_time in audio_clip.iter_chunks(chunk_duration=10.0):
+        # Resample to target rate
+        # Convert channels if needed
+        # Mix into buffer at correct timeline position
+        mixed_audio[start_sample:end_sample] += samples
+```
+
+Source: `src/movielite/core/video_writer.py:279`
+
+<Info>
+Audio is processed in 10-second chunks to keep memory usage low, even for long videos.
+</Info>
+
+## Progress Tracking
+
+VideoWriter uses `tqdm` for progress bars:
+
+```python
+writer.write()  # Shows progress bar automatically
+
+# Output:
+# Rendering video frames: 100%|██████████| 900/900 [00:30<00:00, 30.00it/s]
+# Mixing audio clips: 100%|██████████| 4/4 [00:02<00:00, 2.00it/s]
+```
+
+## Complete Example
+
+```python
+from movielite import (
+    VideoWriter, VideoClip, ImageClip, TextClip, AudioClip,
+    VideoQuality, vfx
+)
+from pictex import Canvas
+import multiprocessing
+
+# Create clips
+intro = VideoClip("intro.mp4", start=0, duration=5)
+intro.add_effect(vfx.FadeIn(1.0))
+
+title = TextClip(
+    "My Video",
+    start=5,
+    duration=3,
+    canvas=Canvas().font_size(80).color("white")
+)
+title.set_position((100, 100))
+title.add_effect(vfx.FadeIn(0.5))
+
+main = VideoClip("main.mp4", start=8, duration=60)
+main.set_speed(1.2)  # Slightly faster
+
+overlay = ImageClip("watermark.png", start=8, duration=60)
+overlay.set_position((1700, 950))  # Bottom-right
+overlay.set_opacity(0.5)
+
+music = AudioClip("background_music.mp3", start=0, duration=68)
+music.set_volume(0.3)  # Lower volume
+
+# Compose and render
+writer = VideoWriter(
+    output_path="final.mp4",
+    fps=30,
+    size=(1920, 1080)
+)
+
+writer.add_clips([intro, title, main, overlay, music])
+
+writer.write(
+    processes=multiprocessing.cpu_count(),
+    video_quality=VideoQuality.HIGH,
+    high_precision_blending=False
+)
+
+print("Video saved to final.mp4")
+```
+
+## Performance Tips
+
+<CardGroup cols={2}>
+  <Card title="Multi-Process Rendering" icon="server">
+    Use `processes=cpu_count()` for videos longer than 30 seconds. Each process renders a segment independently.
+  </Card>
+  
+  <Card title="Quality Selection" icon="sliders">
+    Use `VideoQuality.MIDDLE` for general use. Reserve `VERY_HIGH` for final renders only.
+  </Card>
+  
+  <Card title="High Precision" icon="chart-line">
+    Only enable `high_precision_blending=True` when compositing many transparent layers. It uses 4x more memory.
+  </Card>
+  
+  <Card title="Clip Ordering" icon="layer-group">
+    Place background clips first in `add_clips()`. The first active clip is optimized as the background layer.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="FFmpeg not found">
+Ensure FFmpeg is installed and in your PATH:
+
+```bash
+# Check FFmpeg installation
+ffmpeg -version
+
+# Install on Ubuntu/Debian
+sudo apt install ffmpeg
+
+# Install on macOS
+brew install ffmpeg
+```
+</Accordion>
+
+<Accordion title="Out of memory errors">
+For long videos or high resolutions:
+
+1. Reduce the number of parallel processes
+2. Use `high_precision_blending=False`
+3. Lower the output resolution
+4. Close other applications
+
+```python
+# Memory-efficient settings
+writer.write(
+    processes=2,  # Lower process count
+    high_precision_blending=False
+)
+```
+</Accordion>
+
+<Accordion title="Audio sync issues">
+If audio is out of sync:
+
+1. Ensure all clips have correct `start` times
+2. Check that `set_speed()` is applied to both video and audio
+3. Verify source videos don't have variable frame rates
+
+```python
+# Speed affects both video and audio automatically
+clip = VideoClip("video.mp4", start=0, duration=10)
+clip.set_speed(1.5)  # Audio also plays 1.5x faster
+```
+</Accordion>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Clips" icon="film" href="/concepts/clips">
+    Learn about different clip types
+  </Card>
+  
+  <Card title="Effects" icon="wand-magic-sparkles" href="/concepts/effects">
+    Apply visual and audio effects
+  </Card>
+  
+  <Card title="Audio Mixing" icon="volume-high" href="/concepts/audio-mixing">
+    Advanced audio mixing techniques
+  </Card>
+</CardGroup>

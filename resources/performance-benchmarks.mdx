@@ -1,0 +1,384 @@
+---
+title: 'Performance Benchmarks'
+description: 'Detailed performance comparison between MovieLite and MoviePy with real benchmark data'
+icon: 'gauge-high'
+---
+
+MovieLite is designed for speed. This page presents comprehensive benchmark results comparing MovieLite with MoviePy 2.2.1 on common video editing tasks.
+
+## Executive Summary
+
+<CardGroup cols={2}>
+  <Card title="Overall Speedup" icon="rocket">
+    **3.79x faster** than MoviePy across all tests
+  </Card>
+  
+  <Card title="Complex Compositions" icon="layer-group">
+    Up to **4.61x faster** on complex multi-effect scenes
+  </Card>
+  
+  <Card title="Text Overlays" icon="text">
+    Up to **4.52x faster** on text rendering and compositing
+  </Card>
+  
+  <Card title="Alpha Compositing" icon="images">
+    Up to **3.92x faster** on transparent video overlays
+  </Card>
+</CardGroup>
+
+## Benchmark Results
+
+All tests performed on **1280x720 video at 30fps** with identical FFmpeg settings for fair comparison.
+
+### Complete Results Table
+
+| Task | MovieLite | MoviePy | Speedup |
+|------|-----------|---------|----------|
+| **No processing** | 6.34s | 6.71s | **1.06x** 🚀 |
+| **Video zoom** | 9.52s | 31.81s | **3.34x** 🚀 |
+| **Fade in/out** | 8.53s | 9.03s | **1.06x** 🚀 |
+| **Text overlay** | 7.82s | 35.35s | **4.52x** 🚀 |
+| **Video overlay** | 18.22s | 75.47s | **4.14x** 🚀 |
+| **Alpha video overlay** | 10.75s | 42.11s | **3.92x** 🚀 |
+| **Complex mix*** | 38.07s | 175.31s | **4.61x** 🚀 |
+| **TOTAL** | **99.24s** | **375.79s** | **3.79x** 🚀 |
+
+<Info>
+*Complex mix includes: main video with zoom + fade, 3 image clips with fade effects, text overlay, and video overlay - all composed together.
+</Info>
+
+### Visual Performance Comparison
+
+<Frame>
+  <img src="https://res.cloudinary.com/dlvnbnb9v/image/upload/v1764024572/movielite_efcxcf.gif" alt="MovieLite Performance" />
+</Frame>
+
+## Where MovieLite Excels
+
+<AccordionGroup>
+  <Accordion title="Transform Operations" icon="maximize">
+    **Up to 3.34x faster** on zoom, scale, and resize operations.
+    
+    MovieLite uses Numba JIT-compiled functions for geometric transformations, achieving near-native performance on pixel-level operations. The difference is especially pronounced with animated transforms where scale changes over time.
+    
+    **Key optimization**: Pre-compiled transformation kernels that avoid Python interpreter overhead.
+  </Accordion>
+  
+  <Accordion title="Text Overlays" icon="text">
+    **Up to 4.52x faster** on text rendering and compositing.
+    
+    MovieLite leverages the pictex library with optimized text rasterization, combined with efficient alpha blending. Text clips are rendered once and cached, then composited using JIT-compiled blending functions.
+    
+    **Key optimization**: Cached text rendering + Numba-accelerated alpha blending.
+  </Accordion>
+  
+  <Accordion title="Video Layering" icon="layer-group">
+    **Up to 4.14x faster** on video overlay and layering operations.
+    
+    Compositing multiple video layers involves intensive alpha blending operations. MovieLite's JIT-compiled blending engine processes these operations at near-native speed.
+    
+    **Key optimization**: Numba JIT compilation of alpha blending with in-place operations to minimize memory allocations.
+  </Accordion>
+  
+  <Accordion title="Alpha Compositing" icon="images">
+    **Up to 3.92x faster** on transparent video overlays.
+    
+    Processing RGBA frames with transparency requires per-pixel alpha calculations. MovieLite's optimized alpha blending functions handle this efficiently.
+    
+    **Key optimization**: SIMD-friendly alpha blending algorithms compiled with Numba.
+  </Accordion>
+  
+  <Accordion title="Complex Compositions" icon="diagram-project">
+    **Up to 4.61x faster** on projects with multiple effects and layers.
+    
+    The speedup compounds when combining multiple operations. MovieLite's efficient memory management and JIT-compiled operations stack effectively.
+    
+    **Key optimization**: Streaming frame processing with optimized compositing pipeline.
+  </Accordion>
+</AccordionGroup>
+
+## Performance Architecture
+
+### Why MovieLite is Faster
+
+<Steps>
+  <Step title="Numba JIT Compilation">
+    Critical rendering loops are compiled to native machine code using Numba's `@jit` decorator with `nopython=True`. This eliminates Python interpreter overhead for pixel-level operations.
+    
+    ```python
+    @numba.jit(nopython=True, cache=True)
+    def blend_foreground_with_bgr_background_inplace(
+        background, foreground, x, y, opacity, mask, ...
+    ):
+        # Near-native speed alpha blending
+        ...
+    ```
+  </Step>
+  
+  <Step title="Optimized Compositing">
+    Alpha blending operations are performed in-place when possible, reducing memory allocations. The compositing engine uses efficient NumPy operations combined with JIT-compiled loops.
+  </Step>
+  
+  <Step title="Memory Management">
+    Streaming architecture processes frames one at a time instead of loading entire videos into memory. Clips are closed progressively as they finish rendering.
+  </Step>
+  
+  <Step title="Multiprocessing Support">
+    Parallel frame rendering across multiple CPU cores with automatic chunk distribution. The frame processing workload is split efficiently across available processes.
+  </Step>
+</Steps>
+
+### Frame-by-Frame Processing
+
+MovieLite operates on a frame-by-frame basis, similar to MoviePy:
+
+```python
+# Every frame is individually processed
+for frame_idx in range(total_frames):
+    t = frame_idx / fps
+    frame = clip.get_frame(t)  # Get raw frame
+    frame = apply_transforms(frame, t)  # Apply effects
+    frame = blend_with_other_clips(frame, t)  # Composite
+    write_frame_to_output(frame)
+```
+
+This approach provides:
+- Complete control over every pixel
+- Ability to apply time-based effects
+- Support for complex compositing operations
+- Memory efficiency through streaming
+
+## Benchmark Methodology
+
+### Test Environment
+
+- **Hardware**: Standard desktop CPU (results may vary by system)
+- **Video specs**: 1280x720 resolution, 30fps, ~5 seconds duration
+- **FFmpeg settings**: Identical for both libraries
+  - Codec: `libx264` (H.264)
+  - Preset: `veryfast`
+  - CRF: `21`
+  - Audio codec: `aac`
+
+### Test Cases
+
+<Accordion title="Test 1: No Processing">
+  **Purpose**: Baseline performance test
+  
+  **Operation**: Load video and re-encode without any modifications
+  
+  **Result**: MovieLite 6.34s vs MoviePy 6.71s (1.06x speedup)
+  
+  **Analysis**: Even without effects, MovieLite shows slight improvement due to more efficient frame handling.
+</Accordion>
+
+<Accordion title="Test 2: Video Zoom">
+  **Purpose**: Test transform performance
+  
+  **Operation**: Apply progressive zoom from 1.0x to 1.5x scale over video duration
+  
+  **Result**: MovieLite 9.52s vs MoviePy 31.81s (3.34x speedup)
+  
+  **Analysis**: Dramatic improvement on geometric transformations due to JIT-compiled scaling operations.
+</Accordion>
+
+<Accordion title="Test 3: Fade In/Out">
+  **Purpose**: Test opacity effects
+  
+  **Operation**: Apply 1-second fade in at start and 1-second fade out at end
+  
+  **Result**: MovieLite 8.53s vs MoviePy 9.03s (1.06x speedup)
+  
+  **Analysis**: Modest improvement on simple opacity changes.
+</Accordion>
+
+<Accordion title="Test 4: Text Overlay">
+  **Purpose**: Test text rendering and compositing
+  
+  **Operation**: Add styled text overlay on top of video
+  
+  **Result**: MovieLite 7.82s vs MoviePy 35.35s (4.52x speedup)
+  
+  **Analysis**: Massive improvement due to efficient text rendering (pictex) and optimized alpha blending.
+</Accordion>
+
+<Accordion title="Test 5: Video Overlay">
+  **Purpose**: Test multi-layer video compositing
+  
+  **Operation**: Overlay one video on top of another with 30% opacity
+  
+  **Result**: MovieLite 18.22s vs MoviePy 75.47s (4.14x speedup)
+  
+  **Analysis**: Significant speedup on per-frame alpha blending operations across two video streams.
+</Accordion>
+
+<Accordion title="Test 6: Alpha Video Overlay">
+  **Purpose**: Test transparent video compositing
+  
+  **Operation**: Overlay transparent video (with alpha channel) on main video
+  
+  **Result**: MovieLite 10.75s vs MoviePy 42.11s (3.92x speedup)
+  
+  **Analysis**: RGBA frame processing benefits greatly from JIT-compiled alpha channel handling.
+</Accordion>
+
+<Accordion title="Test 7: Complex Mix">
+  **Purpose**: Real-world complex composition test
+  
+  **Operation**: 
+  - Main video with zoom effect (1.0x to 1.3x) and fade in/out
+  - 3 image clips (5 seconds each) with fade in effects
+  - Text overlay throughout entire duration
+  - Video overlay at 30% opacity
+  
+  **Result**: MovieLite 38.07s vs MoviePy 175.31s (4.61x speedup)
+  
+  **Analysis**: Compound performance benefits when combining multiple operations. MovieLite's optimizations stack effectively.
+</Accordion>
+
+## Running Your Own Benchmarks
+
+You can run these benchmarks yourself to see the performance difference on your hardware.
+
+### Setup
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    pip install moviepy movielite
+    ```
+  </Step>
+  
+  <Step title="Prepare input assets">
+    Create an `input/` directory with:
+    - `video.mp4` - Main test video
+    - `image1.png`, `image2.png`, `image3.png` - Test images
+    - `overlay_video.mp4` - Video for overlay tests
+    - `alpha_video.mov` - Transparent video with alpha channel
+  </Step>
+  
+  <Step title="Run benchmarks">
+    ```bash
+    cd movielite/benchmarks
+    python compare_moviepy.py --input /path/to/input --output ./output
+    ```
+  </Step>
+  
+  <Step title="View results">
+    Results are saved to `output/benchmark_results.json` with detailed timing data.
+  </Step>
+</Steps>
+
+### Creating a Transparent Video
+
+If you don't have a transparent video, create one with FFmpeg:
+
+```bash
+ffmpeg -f lavfi -i color=c=black@0:s=640x480:d=5 -vf \
+  "drawtext=text='TRANSPARENT':fontsize=60:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2" \
+  -c:v libvpx-vp9 -pix_fmt yuva420p input/alpha_video.mov
+```
+
+## Performance Tips
+
+<CardGroup cols={2}>
+  <Card title="Use Multiprocessing" icon="microchip">
+    Enable parallel rendering for 4-8x faster processing on multi-core systems:
+    
+    ```python
+    writer.write(processes=8)
+    ```
+  </Card>
+  
+  <Card title="Optimize Quality Settings" icon="sliders">
+    Use lower quality for preview renders:
+    
+    ```python
+    from movielite import VideoQuality
+    writer.write(video_quality=VideoQuality.LOW)
+    ```
+  </Card>
+  
+  <Card title="Close Clips Early" icon="circle-xmark">
+    Free resources by closing clips when done:
+    
+    ```python
+    clip.close()
+    ```
+  </Card>
+  
+  <Card title="Avoid Unnecessary Transforms" icon="filter">
+    Only apply transforms when needed. Each transformation adds processing time.
+  </Card>
+</CardGroup>
+
+## Multiprocessing Performance
+
+MovieLite supports parallel rendering across multiple CPU cores:
+
+```python
+from movielite import VideoClip, VideoWriter, VideoQuality
+
+clip = VideoClip("input.mp4")
+writer = VideoWriter("output.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+
+# Use 8 parallel processes
+writer.write(processes=8, video_quality=VideoQuality.HIGH)
+
+clip.close()
+```
+
+**Typical speedups with multiprocessing:**
+- 4 processes: 3.2-3.8x faster than single process
+- 8 processes: 5.5-7.2x faster than single process
+- 16 processes: 8.0-11.0x faster than single process
+
+<Note>
+Optimal process count depends on your CPU core count and video complexity. Generally, use `processes = CPU cores` for best results.
+</Note>
+
+## Performance Limitations
+
+<Warning>
+**CPU-only processing**: MovieLite currently doesn't support GPU acceleration. For GPU-based rendering, consider other tools or wait for future GPU support.
+</Warning>
+
+<Info>
+**Results may vary**: Performance depends on:
+- CPU speed and core count
+- Video codec and compression
+- Effect complexity
+- System memory and disk speed
+</Info>
+
+## Future Performance Improvements
+
+Planned optimizations for future releases:
+
+<AccordionGroup>
+  <Accordion title="GPU Acceleration" icon="gpu">
+    Optional GPU support using CuPy or PyTorch for transformations and blending. This could provide another order-of-magnitude performance boost for users with compatible hardware.
+  </Accordion>
+  
+  <Accordion title="Smart Caching" icon="database">
+    Intelligent caching of static content. For example, an `ImageClip` with constant scale shouldn't be re-rendered on every frame.
+  </Accordion>
+  
+  <Accordion title="Extended Numba JIT" icon="bolt">
+    Rewrite more visual effects using Numba to run at near-native speed, further improving rendering times for complex compositions.
+  </Accordion>
+  
+  <Accordion title="SIMD Optimization" icon="microchip">
+    Explicit SIMD vectorization for critical loops to take advantage of modern CPU vector instructions.
+  </Accordion>
+</AccordionGroup>
+
+## Benchmark Code
+
+The complete benchmark suite is available in the MovieLite repository:
+
+- [benchmarks/compare_moviepy.py](https://github.com/francozanardi/movielite/blob/main/benchmarks/compare_moviepy.py)
+- [benchmarks/README.md](https://github.com/francozanardi/movielite/blob/main/benchmarks/README.md)
+
+Feel free to run these benchmarks on your own hardware and share your results!

@@ -1,97 +1,118 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "MovieLite"
+description: "Performance-focused Python video editing library, powered by Numba JIT compilation"
 ---
 
-## Setting up
+<div className="flex flex-col items-center justify-center py-12">
+  <div className="text-center max-w-4xl mx-auto px-4">
+    <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-[#354dc4] to-[#94a4e4] bg-clip-text text-transparent">
+      Fast Python Video Editing
+    </h1>
+    <p className="text-xl mb-8 opacity-90">
+      MovieLite is a lightning-fast video editing library designed as a lightweight alternative to MoviePy. 
+      Achieve 3-4x faster rendering with Numba JIT compilation and a clean, chainable API.
+    </p>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+## Get started in minutes
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install MovieLite with pip and start editing videos
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Create your first video composition in minutes
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Core Concepts" icon="book" href="/concepts/clips">
+    Learn the fundamentals of clips and effects
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="API Reference" icon="code" href="/api/video-clip">
+    Explore the complete API documentation
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Key features
 
-Everything you need to create world-class documentation.
+<CardGroup cols={3}>
+  <Card title="Blazing Fast" icon="bolt">
+    3-4x faster than MoviePy with Numba JIT compilation for critical operations
+  </Card>
+  <Card title="Chainable API" icon="link">
+    Intuitive method chaining for clean, readable video editing code
+  </Card>
+  <Card title="Rich Effects" icon="wand-magic-sparkles">
+    Built-in visual effects, audio effects, and smooth transitions
+  </Card>
+  <Card title="Multiprocessing" icon="microchip">
+    Parallel rendering support for multi-core systems
+  </Card>
+  <Card title="Alpha Compositing" icon="layer-group">
+    Full alpha channel and masking support for advanced effects
+  </Card>
+  <Card title="Frame Control" icon="film">
+    Complete frame-by-frame and sample-by-sample control
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Quick example
 
-## Need inspiration?
+Here's how easy it is to create a video with effects:
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+```python
+from movielite import VideoClip, VideoWriter, vfx
+
+# Load video and apply effects
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.FadeIn(1.0))
+clip.add_effect(vfx.FadeOut(1.5))
+clip.set_position((100, 100))
+clip.set_opacity(0.8)
+
+# Render output
+writer = VideoWriter("output.mp4", fps=30)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+## Performance benchmarks
+
+Real-world benchmark results comparing MovieLite with MoviePy 2.2.1 (1280x720 video, 30fps):
+
+| Task | MovieLite | MoviePy | Speedup |
+|------|-----------|---------|---------|
+| Video zoom | 9.52s | 31.81s | **3.34x** |
+| Text overlay | 7.82s | 35.35s | **4.52x** |
+| Video overlay | 18.22s | 75.47s | **3.14x** |
+| Alpha overlay | 10.75s | 42.11s | **3.92x** |
+| Complex mix | 38.07s | 175.31s | **4.61x** |
+| **Total** | **99.24s** | **375.79s** | **3.79x** |
+
+<Note>
+MovieLite excels at transform operations, text overlays, and complex multi-effect compositions.
+</Note>
+
+## Explore the documentation
+
+<CardGroup cols={2}>
+  <Card title="Basic Editing" icon="scissors" href="/guides/basic-editing">
+    Learn to cut, concatenate, and arrange video clips
+  </Card>
+  <Card title="Text Overlays" icon="text" href="/guides/text-overlays">
+    Add styled text with pictex integration
+  </Card>
+  <Card title="Transitions" icon="arrow-right-arrow-left" href="/guides/transitions">
+    Create smooth transitions between clips
+  </Card>
+  <Card title="Custom Effects" icon="paintbrush" href="/guides/custom-effects">
+    Build your own frame transformations
+  </Card>
+  <Card title="Audio Mixing" icon="music" href="/concepts/audio-mixing">
+    Mix multiple audio tracks with effects
+  </Card>
+  <Card title="Performance Tips" icon="gauge-high" href="/guides/performance">
+    Optimize your rendering workflow
+  </Card>
+</CardGroup>

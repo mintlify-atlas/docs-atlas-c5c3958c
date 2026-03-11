@@ -1,0 +1,232 @@
+---
+title: 'Examples Overview'
+description: 'Complete collection of MovieLite examples demonstrating real-world video editing scenarios'
+---
+
+Welcome to the MovieLite examples collection! This page provides an overview of all available examples, from basic editing to advanced compositing techniques.
+
+## Available Examples
+
+All example code is available in the [GitHub repository](https://github.com/francozanardi/movielite/tree/main/examples).
+
+<CardGroup cols={2}>
+  <Card title="Basic Editing" icon="scissors" href="https://github.com/francozanardi/movielite/blob/main/examples/basic_editing.py">
+    Learn fundamental editing operations: cutting, concatenating, resizing, and positioning clips.
+  </Card>
+  
+  <Card title="Effects Showcase" icon="wand-magic-sparkles" href="/examples/effects-showcase">
+    Explore the complete library of visual and audio effects including fades, blurs, color grading, and glitch effects.
+  </Card>
+  
+  <Card title="Text Animations" icon="text" href="/examples/text-animations">
+    Create dynamic text overlays with animations, gradients, shadows, and custom styling using Pictex.
+  </Card>
+  
+  <Card title="Audio Mixing" icon="volume-high" href="/examples/audio-mixing">
+    Master audio track control, mixing background music, and applying audio effects to your videos.
+  </Card>
+  
+  <Card title="Advanced Compositing" icon="layer-group" href="/examples/advanced-compositing">
+    Build complex compositions with CompositeClip, AlphaCompositeClip, and understand when to use them.
+  </Card>
+  
+  <Card title="Transitions" icon="right-left" href="https://github.com/francozanardi/movielite/blob/main/examples/transitions.py">
+    Apply smooth transitions between clips including crossfade, dissolve, and blur dissolve effects.
+  </Card>
+  
+  <Card title="Masking Effects" icon="mask" href="https://github.com/francozanardi/movielite/blob/main/examples/masking_effects.py">
+    Create sophisticated masking effects with image masks, text masks, and animated masks.
+  </Card>
+  
+  <Card title="Rotation Examples" icon="rotate" href="https://github.com/francozanardi/movielite/blob/main/examples/rotation_examples.py">
+    Rotate clips with static angles, animated spinning, custom pivot points, and quality settings.
+  </Card>
+  
+  <Card title="Speed Control" icon="gauge-high" href="https://github.com/francozanardi/movielite/blob/main/examples/speed_examples.py">
+    Control playback speed for slow motion, time-lapse, and dynamic speed ramping effects.
+  </Card>
+</CardGroup>
+
+## Quick Start Examples
+
+### Extract a Subclip
+
+Extract a 10-second segment from a video:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+segment = clip.subclip(5, 15)  # Extract seconds 5-15
+
+writer = VideoWriter("output_subclip.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(segment)
+writer.write()
+
+clip.close()
+```
+
+### Concatenate Multiple Clips
+
+Join videos sequentially:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip1 = VideoClip("intro.mp4", start=0)
+clip2 = VideoClip("main.mp4", start=clip1.duration)
+clip3 = VideoClip("outro.mp4", start=clip1.duration + clip2.duration)
+
+total_duration = clip1.duration + clip2.duration + clip3.duration
+
+writer = VideoWriter(
+    "output_concat.mp4",
+    fps=clip1.fps,
+    size=clip1.size,
+    duration=total_duration
+)
+writer.add_clips([clip1, clip2, clip3])
+writer.write()
+```
+
+### Add Simple Text Overlay
+
+Add text to your video:
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("input.mp4")
+
+canvas = Canvas().font_size(60).color("white").background_color("transparent")
+text = TextClip("Hello World", start=0, duration=5, canvas=canvas)
+text.set_position((video.size[0] // 2 - text.size[0] // 2, 100))
+
+writer = VideoWriter("output_with_text.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+
+video.close()
+```
+
+## Example Categories
+
+### Basic Operations
+
+Start here if you're new to MovieLite:
+
+- **basic_editing.py** - Subclips, concatenation, resizing, opacity, positioning, looping
+- **speed_examples.py** - Speed control for slow motion and time-lapse effects
+- **rotation_examples.py** - Static and animated rotation with custom pivot points
+
+### Visual Effects
+
+Enhance your videos with built-in effects:
+
+- **effects_showcase.py** - Complete showcase of all visual effects
+- **masking_effects.py** - Image masks, text masks, shape masks, and animations
+- **text_animations.py** - Dynamic text with position, scale, and fade animations
+
+### Audio
+
+Work with audio tracks and effects:
+
+- **video_audio_control.py** - Control video audio tracks, mixing, and synchronization
+- Effects include fade in/out and volume control
+
+### Advanced Techniques
+
+- **composite_clips.py** - When and how to use CompositeClip and AlphaCompositeClip
+- **transitions.py** - Crossfade, dissolve, and blur dissolve transitions
+- Combining multiple effects and advanced compositing
+
+## Running the Examples
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/francozanardi/movielite.git
+    cd movielite
+    ```
+  </Step>
+  
+  <Step title="Install MovieLite">
+    ```bash
+    pip install movielite
+    ```
+  </Step>
+  
+  <Step title="Navigate to Examples">
+    ```bash
+    cd examples
+    ```
+  </Step>
+  
+  <Step title="Prepare Your Media">
+    Update the file paths in the examples to point to your own video, audio, and image files.
+  </Step>
+  
+  <Step title="Run an Example">
+    ```bash
+    python basic_editing.py
+    ```
+    
+    Most examples have multiple functions. Uncomment the ones you want to run in the `if __name__ == "__main__":` section.
+  </Step>
+</Steps>
+
+<Note>
+All examples use placeholder filenames like `input.mp4`, `logo.png`, etc. Make sure to replace these with paths to your actual media files before running.
+</Note>
+
+## Example Code Structure
+
+Each example file follows a consistent structure:
+
+```python
+"""
+Description of what this example demonstrates.
+"""
+
+from movielite import VideoClip, VideoWriter
+
+def example_specific_feature():
+    """Demonstrate a specific feature."""
+    print("Example 1: Feature description")
+    
+    # Example code here
+    clip = VideoClip("input.mp4")
+    # ... operations ...
+    
+    writer = VideoWriter("output.mp4", fps=clip.fps, size=clip.size)
+    writer.add_clip(clip)
+    writer.write()
+    
+    clip.close()
+    print("Created output.mp4\n")
+
+if __name__ == "__main__":
+    # Uncomment the examples you want to run
+    # example_specific_feature()
+    pass
+```
+
+## Getting Help
+
+If you're stuck or have questions about any example:
+
+- Check the [API Reference](/api/video-clip) for detailed method documentation
+- Read the [Core Concepts](/concepts/clips) to understand fundamental principles
+- Visit the [GitHub Issues](https://github.com/francozanardi/movielite/issues) to report bugs or request features
+
+## Contributing Examples
+
+Have a cool MovieLite project? We'd love to add it to our examples collection!
+
+1. Fork the repository
+2. Create your example in the `examples/` directory
+3. Follow the existing code structure and documentation style
+4. Submit a pull request
+
+See [CONTRIBUTING.md](https://github.com/francozanardi/movielite/blob/main/CONTRIBUTING.md) for guidelines.

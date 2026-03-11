@@ -1,0 +1,307 @@
+---
+title: 'Changelog'
+description: 'Version history and release notes for MovieLite'
+icon: 'clock-rotate-left'
+---
+
+All notable changes to MovieLite are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+<CardGroup cols={2}>
+  <Card title="Playback Speed Control" icon="gauge">
+    New `set_speed()` method for all clip types allows you to control playback speed:
+    
+    ```python
+    clip.set_speed(2.0)  # 2x speed
+    clip.set_speed(0.5)  # Slow motion
+    ```
+  </Card>
+  
+  <Card title="Rotation Support" icon="rotate">
+    Rotation support via `set_rotation()` method and `vfx.Rotation` effect:
+    
+    ```python
+    clip.set_rotation(45)  # Static rotation
+    clip.add_effect(vfx.Rotation(angle=90))
+    ```
+  </Card>
+</CardGroup>
+
+### Fixed
+
+- **`AlphaVideoClip.subclip()` preservation**: Now correctly returns `AlphaVideoClip` instead of `VideoClip`, preserving transparency and loop behavior
+
+---
+
+## [0.2.1] - 2025-11-15
+
+### Changed
+
+<Note>
+**Breaking change**: `CompositeClip` and `AlphaCompositeClip` constructor signatures have changed.
+</Note>
+
+- **CompositeClip signature update**: Constructor now requires explicit `start` parameter with optional `duration`:
+  
+  ```python
+  # Old (v0.2.0)
+  composite = CompositeClip(clips=[clip1, clip2])
+  
+  # New (v0.2.1)
+  composite = CompositeClip(clips=[clip1, clip2], start=0, duration=10)
+  # duration is optional and auto-calculated if not provided
+  composite = CompositeClip(clips=[clip1, clip2], start=0)
+  ```
+
+- The `duration` parameter is optional and will be auto-calculated from child clips if not provided
+- This change applies to both `CompositeClip` and `AlphaCompositeClip`
+
+---
+
+## [0.2.0] - 2025-11-15
+
+### Added
+
+<CardGroup cols={2}>
+  <Card title="Composite Clips" icon="layer-group">
+    New `CompositeClip` and `AlphaCompositeClip` classes for grouping multiple clips as a single unit:
+    
+    ```python
+    from movielite import CompositeClip
+    
+    composite = CompositeClip(
+        clips=[background, overlay, text],
+        start=0
+    )
+    ```
+  </Card>
+  
+  <Card title="High-Precision Blending" icon="paintbrush">
+    New `high_precision_blending` parameter for fine control over blending precision:
+    
+    ```python
+    # In VideoWriter
+    writer.write(high_precision_blending=True)
+    
+    # In CompositeClip
+    composite = CompositeClip(
+        clips=[...],
+        high_precision_blending=True
+    )
+    ```
+  </Card>
+</CardGroup>
+
+### Changed
+
+<Info>
+**Performance improvement**: Default blending mode is now faster with uint8 precision.
+</Info>
+
+- **Background frame precision**: Background frames now use **uint8 by default** during blending instead of float32
+- This reduces memory usage and improves rendering speed for most use cases
+- **float32 precision is now opt-in** via `high_precision_blending=True`
+- High-precision mode recommended only for:
+  - Multiple layers with transparency
+  - Subtle gradients requiring high color accuracy
+  - Complex alpha compositing
+
+**Performance impact**:
+- uint8 mode (default): ~15-25% faster rendering, lower memory usage
+- float32 mode (opt-in): Maximum color accuracy, higher memory usage
+
+### Fixed
+
+- **Clip ordering preservation**: Replaced internal `set` with `list` to maintain proper z-order for composition and blending
+- **Video subclipping**: `VideoClip.subclip()` now correctly copies pixel transforms to the new clip instance
+
+---
+
+## [0.1.1] - 2025-11-09
+
+### Fixed
+
+<AccordionGroup>
+  <Accordion title="Memory Leak Fix" icon="memory">
+    **Critical fix**: Memory leak when rendering multiple video clips.
+    
+    **Problem**: All video clips remained open in memory until the end of rendering, causing memory exhaustion on long projects.
+    
+    **Solution**: Clips are now closed progressively as they finish rendering, freeing resources immediately.
+    
+    **Impact**: Dramatically reduced memory usage for projects with many clips or long videos.
+  </Accordion>
+  
+  <Accordion title="Float Position Support" icon="location-dot">
+    **Improvement**: Zoom and position calculations now support float values.
+    
+    **Problem**: Position calculations truncated decimal values, causing jumpy animations.
+    
+    **Solution**: Float positions are now properly rounded instead of truncated.
+    
+    **Note**: Subpixel rendering is not supported, but rounding provides smoother animation than truncation.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## [0.1.0] - 2025-11-08
+
+<Card title="Initial Release" icon="rocket">
+  First public release of MovieLite!
+</Card>
+
+### Features
+
+<Tabs>
+  <Tab title="Core">
+    **Core Functionality**:
+    - Frame-by-frame video processing
+    - VideoClip, AlphaVideoClip for video handling
+    - ImageClip for static images
+    - TextClip with pictex integration
+    - AudioClip for audio tracks
+    - VideoWriter for composition and rendering
+  </Tab>
+  
+  <Tab title="Effects">
+    **Visual Effects (vfx)**:
+    - Fade effects: FadeIn, FadeOut
+    - Blur effects: Blur, BlurIn, BlurOut
+    - Color effects: Saturation, Brightness, Contrast, BlackAndWhite, Sepia
+    - Zoom effects: ZoomIn, ZoomOut, KenBurns
+    - Glitch effects: Glitch, ChromaticAberration, Pixelate
+    - Other: Vignette
+    
+    **Audio Effects (afx)**:
+    - FadeIn, FadeOut
+    
+    **Transitions (vtx)**:
+    - CrossFade
+    - BlurDissolve
+  </Tab>
+  
+  <Tab title="Performance">
+    **Performance Features**:
+    - Numba JIT compilation for critical operations
+    - Multiprocessing support for parallel rendering
+    - Streaming architecture for memory efficiency
+    - Optimized alpha blending
+    - 3-5x faster than MoviePy on common tasks
+  </Tab>
+  
+  <Tab title="Transformations">
+    **Transformations**:
+    - Position control (static and animated)
+    - Opacity control (static and animated)
+    - Scale control (static and animated)
+    - Size adjustment with aspect ratio preservation
+    - Rotation support
+    - Custom frame transformations
+    - Masking for advanced compositing
+  </Tab>
+</Tabs>
+
+### Capabilities
+
+**Video**:
+- Load and manipulate video files
+- Alpha video support (transparency)
+- Image clips (static images as frames)
+- Text rendering with advanced styling
+- Mask support for compositing
+- Video looping
+- Playback speed control
+- Subclip extraction
+
+**Audio**:
+- Audio clip loading and mixing
+- Volume control and curves
+- Audio effects (fade in/out)
+- Multiple audio track mixing
+- Sample-level access
+
+**Output**:
+- MP4 container format
+- H.264 video codec (libx264)
+- AAC audio codec
+- Quality presets: LOW, MIDDLE, HIGH, VERY_HIGH
+
+### Requirements
+
+- Python 3.10-3.13
+- FFmpeg (must be in PATH)
+- NumPy
+- OpenCV (opencv-python)
+- Numba
+- multiprocess
+- tqdm
+- pictex
+
+---
+
+## Version Naming Convention
+
+MovieLite follows [Semantic Versioning](https://semver.org/):
+
+- **MAJOR** version (X.0.0): Incompatible API changes
+- **MINOR** version (0.X.0): New functionality in a backwards-compatible manner
+- **PATCH** version (0.0.X): Backwards-compatible bug fixes
+
+## Upgrade Guide
+
+### Upgrading to 0.2.1 from 0.2.0
+
+If you use `CompositeClip` or `AlphaCompositeClip`, update constructor calls:
+
+```python
+# Before (0.2.0)
+composite = CompositeClip(clips=[clip1, clip2])
+
+# After (0.2.1)
+composite = CompositeClip(clips=[clip1, clip2], start=0)
+# or with explicit duration
+composite = CompositeClip(clips=[clip1, clip2], start=0, duration=10)
+```
+
+### Upgrading to 0.2.0 from 0.1.x
+
+<Steps>
+  <Step title="Review blending precision">
+    Default blending is now uint8 for better performance. If you need maximum color accuracy:
+    
+    ```python
+    writer.write(high_precision_blending=True)
+    ```
+  </Step>
+  
+  <Step title="Test clip ordering">
+    Clip z-order is now preserved correctly. Verify that your compositions render in the expected order.
+  </Step>
+  
+  <Step title="Check subclip transforms">
+    Subclips now inherit pixel transforms. Verify that extracted subclips behave as expected.
+  </Step>
+</Steps>
+
+## Deprecation Policy
+
+MovieLite aims to maintain backwards compatibility whenever possible. When breaking changes are necessary:
+
+1. The old API will be deprecated for at least one minor version
+2. Deprecation warnings will be issued
+3. Migration guides will be provided
+4. Breaking changes are noted clearly in changelog
+
+## Contributing
+
+See [Contributing Guide](/resources/contributing) for information on how to contribute to MovieLite.
+
+## Links
+
+- [GitHub Repository](https://github.com/francozanardi/movielite)
+- [Issue Tracker](https://github.com/francozanardi/movielite/issues)
+- [PyPI Package](https://pypi.org/project/movielite/)

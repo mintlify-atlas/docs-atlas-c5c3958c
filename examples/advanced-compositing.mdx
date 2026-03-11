@@ -1,0 +1,420 @@
+---
+title: 'Advanced Compositing'
+description: 'Build complex compositions with CompositeClip and AlphaCompositeClip in MovieLite'
+---
+
+Compositing allows you to layer multiple visual elements together. MovieLite provides two specialized clip types for advanced compositing scenarios.
+
+<Info>
+  View the complete source code: [composite_clips.py](https://github.com/francozanardi/movielite/blob/main/examples/composite_clips.py)
+</Info>
+
+## When to Use Composite Clips
+
+<Warning>
+  **Important:** Only use `CompositeClip` or `AlphaCompositeClip` when you need to treat multiple clips as a single unit.
+  
+  For simple layering, use `VideoWriter.add_clips()` directly - it's more performant.
+</Warning>
+
+### Use CompositeClip when:
+
+- You need to **transform multiple clips as a group** (move, scale, rotate together)
+- You want to **reuse a composition** in multiple places
+- You need **relative timing** between elements within a group
+
+### Don't use CompositeClip when:
+
+- You just want to **stack clips** on top of each other
+- Elements have **independent transformations**
+- You're compositing the entire video
+
+## Simple Layering (No CompositeClip Needed)
+
+For basic compositing, just add clips to the writer:
+
+```python
+from movielite import VideoClip, ImageClip, VideoWriter
+
+# CORRECT: Simple layering
+background = VideoClip("video.mp4", start=0)
+logo = ImageClip("logo.png", start=2, duration=5)
+logo.set_position((100, 100))
+
+writer = VideoWriter("output.mp4", fps=background.fps, size=background.size)
+writer.add_clips([background, logo])  # Just add them directly
+writer.write()
+```
+
+<Note>
+  This is the preferred approach for 90% of compositing needs. It's simple, performant, and easy to understand.
+</Note>
+
+## CompositeClip: Group Transformations
+
+Use `CompositeClip` when you need to transform multiple elements together.
+
+### Example: Logo + Text Branding
+
+```python
+from movielite import ImageClip, TextClip, VideoClip, VideoWriter, CompositeClip
+from pictex import Canvas
+
+# Create individual elements
+logo = ImageClip("logo.png", start=0, duration=5)
+logo.set_position((0, 0))
+logo.set_size(100, 100)
+
+canvas = Canvas().font_size(40).color("white").background_color("transparent")
+text = TextClip("My Brand", start=0, duration=5, canvas=canvas)
+text.set_position((logo.size[0] + 20, 50))
+
+# Combine into composite
+branding = CompositeClip(
+    clips=[logo, text],
+    start=0,
+    size=(300, 200)
+)
+
+# Now transform the entire branding unit
+branding.set_position((50, 50))      # Move the whole group
+branding.set_scale(0.8)              # Scale everything together
+branding.set_opacity(0.9)            # Apply opacity to the group
+
+# Add to video
+video = VideoClip("video.mp4")
+
+writer = VideoWriter("output_branding.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, branding])
+writer.write()
+```
+
+### How CompositeClip Works
+
+1. **Internal canvas**: Creates a composition of the specified size
+2. **Relative positioning**: Child clip positions are relative to the composite
+3. **Group transformations**: Position, scale, opacity apply to the entire group
+4. **Duration calculation**: Automatically calculated as the maximum end time of child clips
+
+<Info>
+  The composite acts as a single clip that you can transform, position, and add effects to.
+</Info>
+
+## Reusable Compositions
+
+Create a function that returns composites for reuse:
+
+```python
+from movielite import ImageClip, TextClip, CompositeClip, VideoWriter
+from pictex import Canvas
+
+def create_caption(text: str, start: float) -> CompositeClip:
+    """Create a reusable caption with background."""
+    bg = ImageClip.from_color((0, 0, 0), (400, 100), start=0, duration=3)
+    bg.set_opacity(0.7)
+    
+    canvas = Canvas().font_size(30).color("white").background_color("transparent")
+    caption = TextClip(text, start=0, duration=3, canvas=canvas)
+    caption.set_position((20, 30))
+    
+    composite = CompositeClip(
+        clips=[bg, caption],
+        start=start,
+        size=(400, 100)
+    )
+    composite.set_position((100, 500))
+    
+    return composite
+
+# Create multiple instances
+caption1 = create_caption("Scene 1", start=0)
+caption2 = create_caption("Scene 2", start=5)
+caption3 = create_caption("Scene 3", start=10)
+
+video = VideoClip("video.mp4")
+
+writer = VideoWriter("output_captions.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.add_clips([caption1, caption2, caption3])
+writer.write()
+```
+
+## AlphaCompositeClip: Transparency Preservation
+
+Use `AlphaCompositeClip` when you need to preserve transparency in the composite output.
+
+### Example: Transparent Watermark
+
+```python
+from movielite import ImageClip, TextClip, VideoClip, VideoWriter, AlphaCompositeClip
+from pictex import Canvas
+
+# Create transparent background
+bg = ImageClip.from_color((255, 255, 255, 0), (300, 150), start=0, duration=10)
+
+# Add logo with transparency
+logo = ImageClip("logo_with_alpha.png", start=0, duration=10)
+logo.set_position((10, 10))
+logo.set_opacity(0.6)
+
+# Add text
+canvas = Canvas().font_size(24).color("white").background_color("transparent")
+text = TextClip("© 2024", start=0, duration=10, canvas=canvas)
+text.set_position((10, 100))
+text.set_opacity(0.5)
+
+# Use AlphaCompositeClip to preserve transparency
+watermark = AlphaCompositeClip(
+    clips=[bg, logo, text],
+    start=0,
+    size=(300, 150)
+)
+watermark.set_position((200, 300))
+
+video = VideoClip("video.mp4")
+
+writer = VideoWriter("output_watermark.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, watermark])
+writer.write()
+```
+
+<Note>
+  `AlphaCompositeClip` preserves the alpha channel, while `CompositeClip` creates an opaque output.
+</Note>
+
+## Relative Timing and Animation
+
+Child clips use timing relative to the composite's start time.
+
+### Example: Staggered Animation
+
+```python
+from movielite import ImageClip, TextClip, VideoClip, VideoWriter, AlphaCompositeClip
+from pictex import Canvas
+
+# Elements with different start times (relative to composite)
+canvas_title = Canvas().font_size(60).color("white").background_color("transparent")
+title = TextClip("Welcome!", start=0, duration=3, canvas=canvas_title)
+title.set_position((100, 50))
+
+canvas_sub = Canvas().font_size(30).color("#CCCCCC").background_color("transparent")
+subtitle = TextClip("to our channel", start=1, duration=3, canvas=canvas_sub)
+subtitle.set_position((120, 120))
+
+icon = ImageClip("logo.png", start=0.5, duration=3.5)
+icon.set_position((50, 60))
+icon.set_scale(0.5)
+
+# Combine with relative timings
+intro = AlphaCompositeClip(
+    clips=[icon, title, subtitle],
+    start=2,  # Entire animation starts at t=2s in final video
+    size=(400, 200)
+)
+intro.set_position((760, 440))
+
+video = VideoClip("video.mp4")
+
+writer = VideoWriter("output_intro.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, intro])
+writer.write()
+```
+
+### Timeline Breakdown
+
+```
+In composite (relative time):
+  icon:     [0.5s -------- 4.0s]
+  title:    [0.0s ----- 3.0s]
+  subtitle: [1.0s ------- 4.0s]
+  
+Composite duration: max(4.0, 3.0, 4.0) = 4.0s
+
+In final video (absolute time):
+  icon:     [2.5s -------- 6.0s]  (2 + 0.5)
+  title:    [2.0s ----- 5.0s]     (2 + 0)
+  subtitle: [3.0s ------- 6.0s]   (2 + 1)
+```
+
+## Nested Composites
+
+You can nest composites within composites:
+
+```python
+# Create inner composite
+inner = CompositeClip(
+    clips=[element1, element2],
+    start=0,
+    size=(200, 100)
+)
+
+# Use inner composite in outer composite
+outer = CompositeClip(
+    clips=[background, inner, element3],
+    start=0,
+    size=(800, 600)
+)
+```
+
+<Warning>
+  Avoid deep nesting (more than 2-3 levels) as it can impact performance and make debugging difficult.
+</Warning>
+
+## CompositeClip Parameters
+
+```python
+CompositeClip(
+    clips=[clip1, clip2, ...],    # List of child clips
+    start=0.0,                     # Start time in final video
+    size=(width, height),          # Composite canvas size
+    duration=None                  # Optional, auto-calculated if None
+)
+```
+
+- **clips**: List of child clips to composite
+- **start**: When the composite appears in the final video
+- **size**: Canvas size for the composite
+- **duration**: Optional, defaults to `max(child.start + child.duration)`
+
+## AlphaCompositeClip vs CompositeClip
+
+| Feature | CompositeClip | AlphaCompositeClip |
+|---------|---------------|--------------------|
+| **Alpha channel** | No (opaque) | Yes (transparent) |
+| **Performance** | Faster | Slightly slower |
+| **Use case** | Opaque compositions | Transparent overlays |
+| **Background** | Solid | Can be transparent |
+
+## Best Practices
+
+### ✅ DO
+
+- Use composites to group elements that move together
+- Create reusable composition functions
+- Use `AlphaCompositeClip` for watermarks and overlays
+- Keep composite size appropriate to content
+
+### ❌ DON'T
+
+- Use composites for simple stacking (use `add_clips()` instead)
+- Create deeply nested composites (>3 levels)
+- Make composites larger than necessary
+- Use composites when clips have independent transformations
+
+## Common Patterns
+
+### Picture-in-Picture
+
+```python
+main = VideoClip("main.mp4", start=0)
+pip = VideoClip("pip.mp4", start=0)
+pip.set_size(320, 180)
+pip.set_position((main.size[0] - 340, 20))
+
+# No composite needed - just add both
+writer.add_clips([main, pip])
+```
+
+### Animated Logo Bug
+
+```python
+logo = ImageClip("logo.png", start=0, duration=video.duration)
+logo.set_size(100, 100)
+logo.set_position((video.size[0] - 120, 20))
+logo.set_opacity(0.7)
+
+# No composite needed
+writer.add_clips([video, logo])
+```
+
+### Title Card with Elements
+
+```python
+# Multiple elements that transform together
+composite = CompositeClip(
+    clips=[bg, icon, title, subtitle],
+    start=0,
+    size=(1920, 1080)
+)
+composite.add_effect(vfx.FadeIn(1.0))
+composite.add_effect(vfx.FadeOut(1.0))
+```
+
+## Performance Impact
+
+- **CompositeClip**: Renders to intermediate canvas, then composites result
+- **Direct layering**: Renders each clip directly to output
+- **Overhead**: Composites add slight overhead for intermediate rendering
+- **When it matters**: Composites are worth it when you need group transformations
+
+<Info>
+  Modern hardware handles composites efficiently. Only worry about performance if you have many nested composites or very large canvases.
+</Info>
+
+## Troubleshooting
+
+### Composite appears cut off
+
+Increase the composite size:
+
+```python
+composite = CompositeClip(
+    clips=[...],
+    size=(600, 400)  # Increase if elements are cut off
+)
+```
+
+### Child clips not visible
+
+Check:
+- Child clip positions are within composite bounds
+- Child clip durations overlap with composite duration
+- Child clip start times are relative to composite, not absolute
+
+### Transparency not working
+
+Use `AlphaCompositeClip` instead of `CompositeClip`:
+
+```python
+composite = AlphaCompositeClip(...)  # Preserves transparency
+```
+
+## Examples Summary
+
+<CardGroup cols={2}>
+  <Card title="Simple Layering" icon="layer-group">
+    Use `writer.add_clips()` for basic compositing
+  </Card>
+  
+  <Card title="Group Transformations" icon="object-group">
+    Use `CompositeClip` to transform multiple clips together
+  </Card>
+  
+  <Card title="Reusable Elements" icon="recycle">
+    Create functions that return composites
+  </Card>
+  
+  <Card title="Transparent Overlays" icon="eye">
+    Use `AlphaCompositeClip` for watermarks and overlays
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Effects Showcase" icon="wand-magic-sparkles" href="/examples/effects-showcase">
+    Apply effects to composites
+  </Card>
+  
+  <Card title="Text Animations" icon="text" href="/examples/text-animations">
+    Combine text with composites
+  </Card>
+  
+  <Card title="CompositeClip API" icon="code" href="/api-reference">
+    Complete API reference
+  </Card>
+  
+  <Card title="Performance Guide" icon="gauge-high" href="/guides/performance">
+    Optimize your compositions
+  </Card>
+</CardGroup>

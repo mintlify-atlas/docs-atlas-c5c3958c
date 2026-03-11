@@ -1,0 +1,217 @@
+---
+title: 'CrossFade'
+description: 'Smoothly blend from one clip to another with video and audio crossfading'
+---
+
+## Overview
+
+The `CrossFade` transition creates a smooth blend between two clips by fading out the first clip while simultaneously fading in the second clip. This applies to both video (opacity) and audio (volume) if the clips are `VideoClip` instances with audio tracks.
+
+<Note>
+  **Requires overlapping clips**: The clips must have overlapping time ranges with at least `duration` seconds of overlap.
+</Note>
+
+## Constructor
+
+```python
+from movielite import vtx
+
+transition = vtx.CrossFade(duration)
+```
+
+### Parameters
+
+<ParamField path="duration" type="float" required>
+  Duration of the crossfade effect in seconds. The clips must overlap by at least this amount.
+</ParamField>
+
+## Methods
+
+### apply()
+
+Apply the crossfade transition between two clips.
+
+```python
+transition.apply(clip1, clip2)
+```
+
+#### Parameters
+
+<ParamField path="clip1" type="GraphicClip" required>
+  The outgoing clip that will fade out at the end. The fade-out occurs during the last `duration` seconds of this clip.
+</ParamField>
+
+<ParamField path="clip2" type="GraphicClip" required>
+  The incoming clip that will fade in at the beginning. The fade-in occurs during the first `duration` seconds of this clip.
+</ParamField>
+
+#### Raises
+
+- **ValueError**: If clips don't have sufficient overlap for the transition duration
+- **ValueError**: If clips are not in proper sequence (clip2 must start after clip1)
+
+## How It Works
+
+### Video Crossfade
+
+1. **Clip1 fade-out**: During the last `duration` seconds, opacity gradually decreases from 1.0 to 0.0
+2. **Clip2 fade-in**: During the first `duration` seconds, opacity gradually increases from 0.0 to 1.0
+3. The overlapping region shows both clips blended together
+
+### Audio Crossfade
+
+If both clips are `VideoClip` instances with audio:
+
+1. **Clip1 audio fade-out**: Volume decreases at the end
+2. **Clip2 audio fade-in**: Volume increases at the beginning
+3. Creates smooth audio transition without abrupt cuts
+
+## Usage Examples
+
+### Basic Crossfade
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+# Create clips with 0.5 second overlap
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.5, duration=5)  # Starts 0.5s before clip1 ends
+
+# Apply 0.5 second crossfade
+transition = vtx.CrossFade(duration=0.5)
+clip1.add_transition(clip2, transition)
+
+# Calculate total duration accounting for overlap
+total_duration = clip1.duration + clip2.duration - 0.5  # 9.5 seconds
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+### Longer Crossfade for Smoother Transition
+
+```python
+# Create clips with 2 second overlap for a slower blend
+clip1 = VideoClip("scene1.mp4", start=0, duration=8)
+clip2 = VideoClip("scene2.mp4", start=6.0, duration=8)  # 2 second overlap
+
+# Longer crossfade creates very smooth transition
+transition = vtx.CrossFade(duration=2.0)
+clip1.add_transition(clip2, transition)
+
+total_duration = clip1.duration + clip2.duration - 2.0  # 14 seconds
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+```
+
+### Multiple Sequential Crossfades
+
+```python
+# Create three clips with overlaps
+clip1 = VideoClip("scene1.mp4", start=0, duration=4)
+clip2 = VideoClip("scene2.mp4", start=3.5, duration=4)  # 0.5s overlap
+clip3 = VideoClip("scene3.mp4", start=7.0, duration=4)  # 0.5s overlap with clip2
+
+# Apply crossfades between each pair
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+clip2.add_transition(clip3, vtx.CrossFade(duration=0.5))
+
+total_duration = 11.0  # 4 + 4 + 4 - 0.5 - 0.5
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2, clip3])
+writer.write()
+```
+
+### Image Slideshow with Crossfades
+
+```python
+from movielite import ImageClip, VideoWriter, vtx
+
+# Create image clips with overlaps
+images = [
+    ImageClip("photo1.jpg", start=0, duration=3),
+    ImageClip("photo2.jpg", start=2.5, duration=3),     # 0.5s overlap
+    ImageClip("photo3.jpg", start=5.0, duration=3),     # 0.5s overlap
+    ImageClip("photo4.jpg", start=7.5, duration=3),     # 0.5s overlap
+]
+
+# Apply crossfade between consecutive images
+for i in range(len(images) - 1):
+    images[i].add_transition(images[i + 1], vtx.CrossFade(duration=0.5))
+
+total_duration = 9.5  # 3 + 3 + 3 + 3 - 0.5 - 0.5 - 0.5
+
+writer = VideoWriter("slideshow.mp4", fps=30, size=images[0].size, duration=total_duration)
+writer.add_clips(images)
+writer.write()
+```
+
+### Combining Crossfade with Effects
+
+```python
+from movielite import VideoClip, VideoWriter, vtx, vfx
+
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.5, duration=5)
+
+# Add visual effects to individual clips
+clip1.add_effect(vfx.Saturation(1.3))  # Boost saturation
+clip2.add_effect(vfx.Brightness(1.1))  # Increase brightness
+
+# Apply crossfade transition
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+
+total_duration = clip1.duration + clip2.duration - 0.5
+
+writer = VideoWriter("output.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+```
+
+## Common Errors
+
+<Warning>
+  **Insufficient overlap error**
+  
+  ```
+  ValueError: Insufficient overlap for transition. 
+  Required overlap: 1.0s, actual overlap: 0.5s.
+  ```
+  
+  **Solution**: Adjust clip start times to ensure sufficient overlap. If the transition duration is 1.0s, clip2 must start at least 1.0s before clip1 ends.
+</Warning>
+
+<Warning>
+  **No overlap error**
+  
+  ```
+  ValueError: Clips do not overlap. 
+  Clip1 ends at 5.0s, but Clip2 starts at 5.0s.
+  ```
+  
+  **Solution**: Move clip2's start time earlier. For example, if clip1 ends at 5.0s and you want a 0.5s crossfade, set clip2 to start at 4.5s.
+</Warning>
+
+## Implementation Details
+
+The crossfade is implemented by:
+
+1. **Modifying clip1's opacity function**: At time `t` in the last `duration` seconds, opacity = original_opacity × (1 - progress)
+2. **Modifying clip2's opacity function**: At time `t` in the first `duration` seconds, opacity = original_opacity × progress
+3. **Audio transforms** (if applicable): Similar fade applied to audio samples using per-sample multiplication
+
+Source code reference: `/home/daytona/workspace/source/src/movielite/vtx/crossfade.py:24`
+
+## See Also
+
+- [Dissolve](/api/vtx/dissolve) - Alias for CrossFade
+- [BlurDissolve](/api/vtx/blur-dissolve) - Crossfade with blur effect
+- [vtx Overview](/api/vtx/overview) - All video transitions
+- [Fade effect](/api/vfx/fade) - Simple fade in/out for single clips

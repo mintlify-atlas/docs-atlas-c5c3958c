@@ -1,0 +1,343 @@
+---
+title: Rotation Effect
+description: Static and animated rotation effects for video clips
+---
+
+The `Rotation` effect rotates clips by a specified angle. It supports both static (constant angle) and animated (time-based) rotation with extensive customization options.
+
+## Constructor
+
+```python
+Rotation(
+    angle: Union[Callable[[float], float], float],
+    unit: str = "deg",
+    resample: str = "bilinear",
+    expand: bool = True,
+    center: Optional[Tuple[float, float]] = None,
+    translate: Optional[Tuple[float, float]] = None,
+    bg_color: Optional[Tuple[int, ...]] = None
+)
+```
+
+<ParamField path="angle" type="float | Callable[[float], float]" required>
+  Rotation angle. Can be:
+  - A `float` for static rotation (e.g., `45`)
+  - A function of time for animated rotation (e.g., `lambda t: t * 360`)
+  
+  Positive values rotate counter-clockwise.
+</ParamField>
+
+<ParamField path="unit" type="str" default="deg">
+  Unit of the angle. Options:
+  - `"deg"`: Degrees (default)
+  - `"rad"`: Radians
+</ParamField>
+
+<ParamField path="resample" type="str" default="bilinear">
+  Resampling filter for rotation. Options:
+  - `"nearest"`: Fastest, but can look blocky
+  - `"bilinear"`: Good balance of speed and quality (default)
+  - `"bicubic"`: Best quality, but slower
+</ParamField>
+
+<ParamField path="expand" type="bool" default="True">
+  If `True` (default), expands the canvas to fit the rotated content without clipping corners.
+  If `False`, keeps original size (may clip rotated corners).
+</ParamField>
+
+<ParamField path="center" type="Tuple[float, float]" default="None">
+  Center of rotation as `(x, y)` in pixels, relative to top-left corner.
+  If `None` (default), uses the center of the frame.
+</ParamField>
+
+<ParamField path="translate" type="Tuple[float, float]" default="None">
+  Optional post-rotation translation as `(dx, dy)` in pixels.
+</ParamField>
+
+<ParamField path="bg_color" type="Tuple[int, ...]" default="None">
+  Background color for areas outside the rotated frame.
+  - For RGB: `(R, G, B)`
+  - For RGBA: `(R, G, B, A)`
+  
+  If `None` (default), uses black for RGB or transparent for RGBA.
+</ParamField>
+
+## Examples
+
+### Static Rotation
+
+```python
+from movielite import VideoClip, vfx
+
+# Rotate 45 degrees counter-clockwise
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Rotation(45))
+
+# Rotate 90 degrees with high quality
+clip.add_effect(vfx.Rotation(90, resample="bicubic"))
+
+# Rotate in radians
+import math
+clip.add_effect(vfx.Rotation(math.pi / 4, unit="rad"))
+```
+
+### Animated Rotation
+
+```python
+from movielite import VideoClip, vfx
+
+# Continuous rotation: 360 degrees per second
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Rotation(lambda t: t * 360))
+
+# Slow rotation: 30 degrees per second
+clip.add_effect(vfx.Rotation(lambda t: t * 30))
+
+# Oscillating rotation: swing back and forth
+import math
+clip.add_effect(vfx.Rotation(lambda t: 45 * math.sin(t * 2 * math.pi)))
+```
+
+### Advanced Options
+
+```python
+from movielite import VideoClip, vfx
+
+clip = VideoClip("input.mp4")
+
+# Rotate around top-left corner
+clip.add_effect(vfx.Rotation(45, center=(0, 0)))
+
+# Rotate without expanding canvas (may clip)
+clip.add_effect(vfx.Rotation(45, expand=False))
+
+# Rotate with custom background color
+clip.add_effect(vfx.Rotation(30, bg_color=(255, 255, 255)))  # White background
+
+# Rotate and translate
+clip.add_effect(vfx.Rotation(45, translate=(50, 30)))
+```
+
+## Resampling Filters
+
+<ParamField path="nearest" type="filter">
+  **Fastest** but lowest quality. Suitable for:
+  - Pixel art or low-resolution content
+  - When performance is critical
+  - Preview/draft renders
+</ParamField>
+
+<ParamField path="bilinear" type="filter">
+  **Balanced** speed and quality (default). Suitable for:
+  - Most general use cases
+  - Good quality without performance penalty
+  - Production renders
+</ParamField>
+
+<ParamField path="bicubic" type="filter">
+  **Highest quality** but slower. Suitable for:
+  - High-resolution video
+  - Final/export quality renders
+  - When visual quality is paramount
+</ParamField>
+
+## Canvas Expansion
+
+### With Expansion (expand=True)
+
+```python
+clip.add_effect(vfx.Rotation(45, expand=True))
+```
+
+- Canvas size increases to fit entire rotated content
+- No clipping of corners
+- Output dimensions may be larger than input
+- **Best for**: Preserving entire frame content
+
+### Without Expansion (expand=False)
+
+```python
+clip.add_effect(vfx.Rotation(45, expand=False))
+```
+
+- Canvas size remains unchanged
+- Corners may be clipped
+- Output dimensions = input dimensions
+- **Best for**: Maintaining fixed dimensions, subtle rotations
+
+## Performance Optimizations
+
+<Info>
+The `Rotation` effect includes several optimizations for common cases:
+
+**Fast paths** for 90°, 180°, and 270° rotations:
+- Uses NumPy's `rot90()` instead of OpenCV transform
+- 10-50× faster than general rotation
+- Only when `expand=True` and no custom parameters
+</Info>
+
+### Common Angle Optimizations
+
+| Angle | Optimization | Speed Gain |
+|-------|-------------|------------|
+| 0° | Returns original frame | Instant |
+| 90° | `np.rot90(k=1)` | 50× faster |
+| 180° | `frame[::-1, ::-1]` | 100× faster |
+| 270° | `np.rot90(k=3)` | 50× faster |
+| Other | OpenCV warpAffine | Standard |
+
+## Rotation Center Examples
+
+```python
+from movielite import VideoClip, vfx
+
+clip = VideoClip("input.mp4")
+width, height = clip.size
+
+# Center (default)
+clip.add_effect(vfx.Rotation(45, center=None))
+
+# Top-left corner
+clip.add_effect(vfx.Rotation(45, center=(0, 0)))
+
+# Top-right corner
+clip.add_effect(vfx.Rotation(45, center=(width, 0)))
+
+# Bottom-left corner
+clip.add_effect(vfx.Rotation(45, center=(0, height)))
+
+# Bottom-right corner
+clip.add_effect(vfx.Rotation(45, center=(width, height)))
+
+# Custom point (1/3 from left, 1/4 from top)
+clip.add_effect(vfx.Rotation(45, center=(width/3, height/4)))
+```
+
+## Animated Rotation Patterns
+
+### Continuous Spin
+
+```python
+# One full rotation per second
+clip.add_effect(vfx.Rotation(lambda t: t * 360))
+
+# Slower: one rotation every 5 seconds
+clip.add_effect(vfx.Rotation(lambda t: t * 72))
+```
+
+### Oscillation
+
+```python
+import math
+
+# Swing between -30° and +30°
+clip.add_effect(vfx.Rotation(lambda t: 30 * math.sin(t * 2)))
+
+# Faster oscillation
+clip.add_effect(vfx.Rotation(lambda t: 45 * math.sin(t * math.pi * 2)))
+```
+
+### Accelerating Rotation
+
+```python
+# Rotation speed increases over time
+clip.add_effect(vfx.Rotation(lambda t: 30 * t * t))
+
+# Eased rotation (starts slow, speeds up, slows down)
+clip.add_effect(vfx.Rotation(lambda t: 180 * (t - math.sin(t)))))
+```
+
+## Combining with Other Effects
+
+### Rotation + Zoom
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Rotation(lambda t: t * 45))
+clip.add_effect(vfx.ZoomIn(duration=5.0, to_scale=1.3))
+```
+
+### Rotation + Color Effects
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Rotation(15))
+clip.add_effect(vfx.Saturation(1.4))
+clip.add_effect(vfx.Vignette(intensity=0.5))
+```
+
+### Rotation + Fade
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.FadeIn(1.0))
+clip.add_effect(vfx.Rotation(lambda t: t * 180))
+clip.add_effect(vfx.FadeOut(1.0))
+```
+
+## Technical Details
+
+### Rotation Matrix
+
+Uses OpenCV's `getRotationMatrix2D` to create a 2×3 affine transformation matrix:
+
+```
+[ cos(θ)  -sin(θ)  tx ]
+[ sin(θ)   cos(θ)  ty ]
+```
+
+Where:
+- `θ` = rotation angle
+- `tx, ty` = translation to center/expand canvas
+
+### Canvas Size Calculation
+
+When `expand=True`, new dimensions are calculated to fit rotated content:
+
+```python
+new_width = ⌈h × |sin(θ)| + w × |cos(θ)|⌉
+new_height = ⌈h × |cos(θ)| + w × |sin(θ)|⌉
+```
+
+### Border Handling
+
+Uses `cv2.BORDER_CONSTANT` with configurable `bg_color`:
+- RGB frames: defaults to black `(0, 0, 0)`
+- RGBA frames: defaults to transparent `(0, 0, 0, 0)`
+
+Source: `src/movielite/vfx/rotation.py:8-194`
+
+## Common Issues
+
+<Warning>
+**Issue**: Rotation looks jagged or pixelated
+
+**Solution**: Use `resample="bicubic"` for higher quality:
+```python
+clip.add_effect(vfx.Rotation(45, resample="bicubic"))
+```
+</Warning>
+
+<Warning>
+**Issue**: Rotated content is clipped at corners
+
+**Solution**: Ensure `expand=True` (default):
+```python
+clip.add_effect(vfx.Rotation(45, expand=True))
+```
+</Warning>
+
+<Warning>
+**Issue**: Background shows through rotated frame
+
+**Solution**: Set custom background color:
+```python
+clip.add_effect(vfx.Rotation(45, bg_color=(255, 255, 255)))  # White
+```
+</Warning>
+
+## See Also
+
+- [Zoom Effects](/api/vfx/zoom) - Combine rotation with zoom for dynamic motion
+- [Glitch Effects](/api/vfx/glitch) - Add distortion to rotated content
+- [OpenCV warpAffine Documentation](https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html#ga0203d9ee5fcd28d40dbc4a1ea4451983)

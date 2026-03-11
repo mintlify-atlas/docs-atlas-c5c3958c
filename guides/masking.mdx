@@ -1,0 +1,526 @@
+---
+title: Masking and Compositing
+description: Create advanced visual effects using masks for selective transparency
+---
+
+## Overview
+
+Masking is a powerful compositing technique where one clip controls the visibility of another. The mask determines which pixels are shown (opaque) and which are hidden (transparent), enabling creative effects like text reveals, spotlight effects, and artistic compositions.
+
+## Basic Masking Concepts
+
+### How Masks Work
+
+In MovieLite, a mask is a GraphicClip that determines the transparency of another clip:
+
+- **White pixels** (255) = fully visible
+- **Black pixels** (0) = fully transparent
+- **Gray pixels** (1-254) = partially transparent
+
+The mask is applied multiplicatively with the clip's opacity:
+```
+final_opacity = clip_opacity × mask_value × mask_opacity
+```
+
+### Setting a Mask
+
+Any GraphicClip (VideoClip, ImageClip, TextClip) can be used as a mask:
+
+```python
+video = VideoClip("input.mp4")
+mask = ImageClip("mask.png")
+video.set_mask(mask)
+```
+
+## Image Masks
+
+### Simple Image Mask
+
+Use a static image to control video visibility:
+
+```python
+from movielite import VideoClip, ImageClip, VideoWriter
+
+video = VideoClip("input.mp4", start=0, duration=5)
+mask = ImageClip("mask.png", duration=5)
+
+# Apply mask
+video.set_mask(mask)
+
+writer = VideoWriter("output_image_mask.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+<Info>
+  The mask image should be the same size as the video, or positioned appropriately. If the mask has an alpha channel, it will be used; otherwise, the brightness is used as the mask value.
+</Info>
+
+### Creating Custom Shape Masks
+
+Generate masks programmatically using NumPy and OpenCV:
+
+```python
+import numpy as np
+import cv2
+from movielite import VideoClip, ImageClip, VideoWriter
+
+video = VideoClip("input.mp4", start=0, duration=5)
+
+# Create a circular mask
+mask_size = video.size
+mask_frame = np.zeros((mask_size[1], mask_size[0]), dtype=np.uint8)
+
+center = (mask_size[0] // 2, mask_size[1] // 2)
+radius = min(mask_size[0], mask_size[1]) // 3
+
+# Draw white circle
+cv2.circle(mask_frame, center, radius, 255, -1)
+
+# Apply Gaussian blur for soft edges
+mask_frame = cv2.GaussianBlur(mask_frame, (51, 51), 0)
+
+# Convert to RGB
+mask_rgb = cv2.cvtColor(mask_frame, cv2.COLOR_GRAY2RGB)
+
+# Create ImageClip from array
+mask = ImageClip(mask_rgb, duration=5)
+
+video.set_mask(mask)
+
+writer = VideoWriter("output_shape_mask.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+<Steps>
+  <Step title="Create base array">
+    Start with a black (zero) array matching the video dimensions
+  </Step>
+  <Step title="Draw shape">
+    Use OpenCV to draw white shapes (circles, rectangles, polygons)
+  </Step>
+  <Step title="Soften edges">
+    Apply GaussianBlur for smooth transitions between visible and transparent areas
+  </Step>
+  <Step title="Convert to clip">
+    Create an ImageClip from the mask array and apply to the video
+  </Step>
+</Steps>
+
+## Text Masks
+
+### Static Text Mask
+
+Make video visible only through text shapes:
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("waves.mp4", start=0, duration=5)
+
+# Create text as mask (white text on transparent background)
+canvas = Canvas().font_size(200).color("white").background_color("transparent")
+text = TextClip("MASKED", start=0, duration=5, canvas=canvas)
+text.set_position((
+    video.size[0] // 2 - text.size[0] // 2,
+    video.size[1] // 2 - text.size[1] // 2
+))
+
+# Apply text as mask
+video.set_mask(text)
+
+writer = VideoWriter("output_text_mask.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+<Tip>
+  Text masks work best with bold, thick fonts. Thin fonts may appear jagged or hard to read when filled with video.
+</Tip>
+
+### Animated Text Mask
+
+Combine masking with animation for dynamic effects:
+
+```python
+import numpy as np
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("waves.mp4", start=0, duration=10)
+
+# Create animated text mask
+canvas = Canvas().font_size(200).color("white").background_color("transparent")
+text = TextClip("Hello World!", start=0, duration=10, canvas=canvas)
+
+# Animate position (sinusoidal wave motion)
+text.set_position(lambda t: (
+    960 - text.size[0] // 2,
+    500 + int(20 * np.sin(2 * np.pi * (t / text.duration)))
+))
+
+# Animate scale (grow over time)
+text.set_scale(lambda t: 1.0 + 0.4 * (t / text.duration))
+
+# Apply mask
+video.set_mask(text)
+video.set_size(1920, 1080)
+
+writer = VideoWriter("output_animated_text_mask.mp4", fps=30, size=(1920, 1080))
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+## Advanced Masking Techniques
+
+### Gradient Masks
+
+Create smooth fade effects using gradient masks:
+
+```python
+import numpy as np
+import cv2
+from movielite import VideoClip, ImageClip, VideoWriter
+
+video = VideoClip("input.mp4", start=0, duration=5)
+
+# Create vertical gradient mask (fade from top to bottom)
+height, width = video.size[1], video.size[0]
+mask_frame = np.zeros((height, width), dtype=np.uint8)
+
+for y in range(height):
+    # Gradient from 255 at top to 0 at bottom
+    value = int(255 * (1 - y / height))
+    mask_frame[y, :] = value
+
+mask_rgb = cv2.cvtColor(mask_frame, cv2.COLOR_GRAY2RGB)
+mask = ImageClip(mask_rgb, duration=5)
+
+video.set_mask(mask)
+
+writer = VideoWriter("output_gradient_mask.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+### Radial Gradient Masks
+
+Spotlight or vignette-style effects:
+
+```python
+import numpy as np
+from movielite import VideoClip, ImageClip, VideoWriter
+
+video = VideoClip("input.mp4", start=0, duration=5)
+
+height, width = video.size[1], video.size[0]
+mask_frame = np.zeros((height, width), dtype=np.float32)
+
+center_x, center_y = width // 2, height // 2
+max_distance = np.sqrt(center_x**2 + center_y**2)
+
+# Create radial gradient
+for y in range(height):
+    for x in range(width):
+        distance = np.sqrt((x - center_x)**2 + (y - center_y)**2)
+        # Normalize distance and invert (bright in center, dark at edges)
+        mask_frame[y, x] = max(0, 255 * (1 - distance / max_distance))
+
+mask_rgb = np.stack([mask_frame, mask_frame, mask_frame], axis=2).astype(np.uint8)
+mask = ImageClip(mask_rgb, duration=5)
+
+video.set_mask(mask)
+
+writer = VideoWriter("output_radial_mask.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+## Mask Positioning and Opacity
+
+### Positioning Masks
+
+Masks can be positioned independently from the clip they're masking:
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("input.mp4", start=0, duration=5)
+canvas = Canvas().font_size(150).color("white").background_color("transparent")
+text_mask = TextClip("REVEAL", start=0, duration=5, canvas=canvas)
+
+# Position mask differently from video
+video.set_position((0, 0))
+text_mask.set_position((100, 200))  # Mask at different position
+
+video.set_mask(text_mask)
+
+writer = VideoWriter("output_positioned_mask.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+### Mask Opacity
+
+Control the overall intensity of the mask:
+
+```python
+text_mask.set_opacity(0.7)  # Mask at 70% strength
+video.set_mask(text_mask)
+
+# This creates a semi-transparent effect where:
+# - White mask areas show video at 70% opacity
+# - Black mask areas are fully transparent
+```
+
+### Moving Masks
+
+Animate mask position for reveal effects:
+
+```python
+import numpy as np
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("input.mp4", start=0, duration=5)
+canvas = Canvas().font_size(180).color("white").background_color("transparent")
+text_mask = TextClip("WIPE", start=0, duration=5, canvas=canvas)
+
+# Slide mask from left to right
+text_mask.set_position(lambda t: (
+    int(-text_mask.size[0] + (video.size[0] + text_mask.size[0]) * (t / 5.0)),
+    video.size[1] // 2 - text_mask.size[1] // 2
+))
+
+video.set_mask(text_mask)
+
+writer = VideoWriter("output_moving_mask.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+## Video Masks
+
+### Using Video as Mask
+
+A video clip can serve as an animated mask:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+main_video = VideoClip("main.mp4", start=0, duration=10)
+mask_video = VideoClip("mask_animation.mp4", start=0, duration=10)
+
+# Use the mask video (converted to grayscale) as the mask
+main_video.set_mask(mask_video)
+
+writer = VideoWriter("output_video_mask.mp4", fps=main_video.fps, size=main_video.size)
+writer.add_clip(main_video)
+writer.write()
+
+main_video.close()
+mask_video.close()
+```
+
+<Note>
+  When using a video as a mask, each frame is converted to grayscale automatically. The brightness of each pixel determines the transparency.
+</Note>
+
+## Creative Masking Examples
+
+### Spotlight Effect
+
+```python
+import numpy as np
+import cv2
+from movielite import VideoClip, ImageClip, VideoWriter
+
+video = VideoClip("input.mp4", start=0, duration=5)
+
+# Create spotlight mask
+height, width = video.size[1], video.size[0]
+mask_frame = np.zeros((height, width), dtype=np.uint8)
+
+# Multiple spotlights
+spotlights = [
+    (width // 3, height // 2, 150),      # (x, y, radius)
+    (2 * width // 3, height // 2, 150),
+]
+
+for x, y, radius in spotlights:
+    cv2.circle(mask_frame, (x, y), radius, 255, -1)
+
+# Soft edges
+mask_frame = cv2.GaussianBlur(mask_frame, (101, 101), 0)
+
+mask_rgb = cv2.cvtColor(mask_frame, cv2.COLOR_GRAY2RGB)
+mask = ImageClip(mask_rgb, duration=5)
+
+video.set_mask(mask)
+
+writer = VideoWriter("output_spotlight.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+### Text Reveal Animation
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter, vfx
+from pictex import Canvas
+
+video = VideoClip("input.mp4", start=0, duration=5)
+
+canvas = Canvas().font_size(150).color("white").background_color("transparent")
+text_mask = TextClip("REVEAL", start=0, duration=5, canvas=canvas)
+text_mask.set_position((
+    video.size[0] // 2 - text_mask.size[0] // 2,
+    video.size[1] // 2 - text_mask.size[1] // 2
+))
+
+# Fade in the mask for a reveal effect
+text_mask.add_effect(vfx.FadeIn(2.0))
+
+video.set_mask(text_mask)
+
+writer = VideoWriter("output_text_reveal.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+### Picture Frame Effect
+
+```python
+import numpy as np
+import cv2
+from movielite import VideoClip, ImageClip, VideoWriter
+
+video = VideoClip("input.mp4", start=0, duration=5)
+
+height, width = video.size[1], video.size[0]
+mask_frame = np.zeros((height, width), dtype=np.uint8)
+
+# Draw rounded rectangle frame
+padding = 100
+top_left = (padding, padding)
+bottom_right = (width - padding, height - padding)
+cv2.rectangle(mask_frame, top_left, bottom_right, 255, -1)
+
+# Add border with gradient
+border_thickness = 50
+for i in range(border_thickness):
+    alpha = int(255 * (1 - i / border_thickness))
+    cv2.rectangle(
+        mask_frame,
+        (padding - i, padding - i),
+        (width - padding + i, height - padding + i),
+        alpha,
+        2
+    )
+
+mask_rgb = cv2.cvtColor(mask_frame, cv2.COLOR_GRAY2RGB)
+mask = ImageClip(mask_rgb, duration=5)
+
+video.set_mask(mask)
+
+writer = VideoWriter("output_frame.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.write()
+
+video.close()
+```
+
+## Combining Masks with Compositing
+
+### Multi-Layer Composition
+
+```python
+from movielite import VideoClip, ImageClip, TextClip, VideoWriter
+from pictex import Canvas
+import numpy as np
+import cv2
+
+# Background
+background = VideoClip("background.mp4", start=0, duration=10)
+
+# Foreground video with text mask
+foreground = VideoClip("foreground.mp4", start=0, duration=10)
+canvas = Canvas().font_size(250).color("white").background_color("transparent")
+text_mask = TextClip("VIDEO", start=0, duration=10, canvas=canvas)
+text_mask.set_position((
+    background.size[0] // 2 - text_mask.size[0] // 2,
+    background.size[1] // 2 - text_mask.size[1] // 2
+))
+foreground.set_mask(text_mask)
+foreground.set_size(background.size[0], background.size[1])
+
+writer = VideoWriter("output_composite.mp4", fps=30, size=background.size)
+writer.add_clips([background, foreground])
+writer.write()
+
+background.close()
+foreground.close()
+```
+
+## Performance Considerations
+
+<Warning>
+  Masking adds computational overhead, especially with:
+  - Large mask images (high resolution)
+  - Animated masks (position/scale changes)
+  - Soft-edged masks (Gaussian blur operations)
+</Warning>
+
+### Optimization Tips
+
+1. **Use appropriate mask resolution**: Masks don't need to be higher resolution than the video
+2. **Minimize blur operations**: Pre-blur masks when possible
+3. **Static masks**: Use ImageClip masks when the mask doesn't need to animate
+4. **Enable multiprocessing**: Use `writer.write(processes=8)` for faster rendering
+
+## Best Practices
+
+<Card title="Soft Edges" icon="circle-half-stroke">
+  Always blur hard-edged masks with GaussianBlur for professional results. Sharp edges look aliased and amateurish.
+</Card>
+
+<Card title="Contrast" icon="adjust">
+  Ensure strong contrast in masks - use pure white (255) for visible areas and pure black (0) for transparent areas.
+</Card>
+
+<Card title="Test First" icon="flask">
+  Test masks on short clips (2-3 seconds) before rendering full videos to verify positioning and effects.
+</Card>
+
+<Card title="Size Matching" icon="expand">
+  Match mask dimensions to video dimensions, or use `.set_size()` to scale appropriately.
+</Card>
+
+## Next Steps
+
+- Create [Custom Effects](/guides/custom-effects) that work with masks
+- Combine masks with [Transitions](/guides/transitions) for creative scene changes
+- Learn about [Performance Optimization](/guides/performance) for complex compositions

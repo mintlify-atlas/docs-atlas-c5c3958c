@@ -1,0 +1,190 @@
+---
+title: Blur Effects
+description: Gaussian blur effects for video clips including static, animated, blur-in, and blur-out
+---
+
+Blur effects apply Gaussian blur to video clips. MovieLite provides three blur effect classes: `Blur`, `BlurIn`, and `BlurOut`.
+
+## Blur
+
+Apply Gaussian blur to the clip. Can be static (constant blur) or animated (blur increases over time).
+
+### Constructor
+
+```python
+Blur(intensity: float = 5.0, animated: bool = False, duration: float = None)
+```
+
+<ParamField path="intensity" type="float" default="5.0">
+  Blur intensity (kernel size). Higher values = more blur. Must be odd number ≥ 1.
+  The effect automatically converts to odd numbers and ensures minimum value of 1.
+</ParamField>
+
+<ParamField path="animated" type="bool" default="False">
+  If `True`, blur increases from 0 to `intensity` over the specified duration.
+  If `False`, applies constant blur at the specified intensity.
+</ParamField>
+
+<ParamField path="duration" type="float" default="None">
+  Duration of the blur animation in seconds. Required when `animated=True`.
+</ParamField>
+
+### Examples
+
+#### Static Blur
+
+```python
+from movielite import VideoClip, vfx
+
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Blur(intensity=7.0))
+```
+
+#### Animated Blur
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Blur(intensity=15.0, animated=True, duration=3.0))
+```
+
+<Warning>
+When `animated=True`, you must specify the `duration` parameter, otherwise a `ValueError` will be raised.
+</Warning>
+
+### How It Works
+
+- **Static blur**: Applies OpenCV's `GaussianBlur` with constant kernel size
+- **Animated blur**: Linearly interpolates kernel size from 1 to `intensity` over `duration`
+- Kernel sizes are always odd numbers (required by OpenCV)
+- Kernel size of 1 means no blur is applied
+
+Source: `src/movielite/vfx/blur.py:6-63`
+
+---
+
+## BlurIn
+
+Blur-in effect that starts blurred and gradually becomes sharp.
+
+### Constructor
+
+```python
+BlurIn(duration: float, max_intensity: float = 15.0)
+```
+
+<ParamField path="duration" type="float" required>
+  Duration of the blur-in effect in seconds, from the start of the clip.
+</ParamField>
+
+<ParamField path="max_intensity" type="float" default="15.0">
+  Maximum blur intensity at the start of the effect. The blur decreases to 0 by the end.
+</ParamField>
+
+### Example
+
+```python
+from movielite import VideoClip, vfx
+
+# Start blurred, become clear over 3 seconds
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.BlurIn(duration=3.0, max_intensity=15.0))
+```
+
+### How It Works
+
+The blur intensity decreases over time:
+
+- **t < duration**: kernel_size = max_intensity × (1 - t/duration)
+- **t ≥ duration**: No blur applied (sharp)
+
+Source: `src/movielite/vfx/blur.py:65-105`
+
+---
+
+## BlurOut
+
+Blur-out effect that starts sharp and gradually becomes blurred.
+
+### Constructor
+
+```python
+BlurOut(duration: float, max_intensity: float = 15.0)
+```
+
+<ParamField path="duration" type="float" required>
+  Duration of the blur-out effect in seconds, measured from the end of the clip.
+</ParamField>
+
+<ParamField path="max_intensity" type="float" default="15.0">
+  Maximum blur intensity at the end of the effect.
+</ParamField>
+
+### Example
+
+```python
+from movielite import VideoClip, vfx
+
+# Become blurred over the last 3 seconds
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.BlurOut(duration=3.0, max_intensity=15.0))
+```
+
+### How It Works
+
+The blur is applied at the end of the clip:
+
+- **t < (clip_duration - duration)**: No blur applied (sharp)
+- **t ≥ (clip_duration - duration)**: kernel_size increases from 1 to max_intensity
+
+Source: `src/movielite/vfx/blur.py:107-149`
+
+---
+
+## Combining Blur Effects
+
+### Blur In and Out
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.BlurIn(duration=2.0, max_intensity=15.0))
+clip.add_effect(vfx.BlurOut(duration=2.0, max_intensity=15.0))
+```
+
+### Blur with Fade
+
+```python
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.FadeIn(1.0))
+clip.add_effect(vfx.BlurIn(duration=1.0, max_intensity=15.0))
+clip.add_effect(vfx.FadeOut(1.5))
+```
+
+## Performance Considerations
+
+<Info>
+Blur effects use OpenCV's optimized `GaussianBlur` function, which is highly efficient even at high intensities. However, higher blur intensities will increase processing time.
+</Info>
+
+### Intensity Guidelines
+
+- **Light blur**: 3-7
+- **Medium blur**: 9-15
+- **Heavy blur**: 17-25
+- **Extreme blur**: 27+
+
+<Note>
+Very high blur intensities (>50) can significantly slow down rendering. For most use cases, intensities between 5-20 provide good visual results with reasonable performance.
+</Note>
+
+## Technical Details
+
+- Uses OpenCV's `cv2.GaussianBlur` with automatic sigma calculation
+- Kernel size must be odd and ≥ 1 (enforced automatically)
+- For animated blur, kernel size is recalculated for each frame
+- Standard deviation (sigma) is set to 0, letting OpenCV calculate it from kernel size
+
+## See Also
+
+- [Fade Effects](/api/vfx/fade) - Combine with fades for smooth transitions
+- [Glitch Effects](/api/vfx/glitch) - Other distortion effects
+- [OpenCV GaussianBlur Documentation](https://docs.opencv.org/4.x/d4/d86/group__imgproc__filter.html#gaabe8c836e97159a9193fb0b11ac52cf1)

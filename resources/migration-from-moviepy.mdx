@@ -1,0 +1,796 @@
+---
+title: 'Migrating from MoviePy'
+description: 'Complete guide to migrating your MoviePy projects to MovieLite with side-by-side code comparisons'
+icon: 'right-left'
+---
+
+MovieLite is designed to be familiar to MoviePy users while offering significant performance improvements. This guide shows you how to migrate your existing MoviePy code to MovieLite.
+
+## Why Migrate?
+
+MovieLite offers substantial performance improvements over MoviePy for common video editing tasks:
+
+- **3.79x faster overall** on standard workflows
+- **Up to 4.61x faster** on complex compositions
+- **Up to 4.52x faster** on text overlays
+- **Up to 3.92x faster** on alpha compositing
+
+These improvements come from Numba JIT compilation, optimized compositing, and better memory management.
+
+## Philosophy Differences
+
+<CardGroup cols={2}>
+  <Card title="MoviePy" icon="film">
+    - Comprehensive feature set
+    - Many codec/format options
+    - GPU support (limited)
+    - Larger ecosystem
+  </Card>
+  
+  <Card title="MovieLite" icon="gauge-high">
+    - Speed-focused for common tasks
+    - MP4/H.264 output only
+    - CPU-optimized with Numba
+    - Cleaner, chainable API
+  </Card>
+</CardGroup>
+
+## Installation
+
+<CodeGroup>
+```bash MoviePy
+pip install moviepy
+```
+
+```bash MovieLite
+pip install movielite
+```
+</CodeGroup>
+
+Both require FFmpeg to be installed and available in your PATH.
+
+## Core API Comparison
+
+### Basic Video Loading and Export
+
+<CodeGroup>
+```python MoviePy
+from moviepy import VideoFileClip
+
+clip = VideoFileClip("input.mp4")
+clip.write_videofile(
+    "output.mp4",
+    codec='libx264',
+    audio_codec='aac'
+)
+clip.close()
+```
+
+```python MovieLite
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+<Note>
+MovieLite uses a separate `VideoWriter` object for composition, making it easier to combine multiple clips.
+</Note>
+
+### Extracting Subclips
+
+<CodeGroup>
+```python MoviePy
+clip = VideoFileClip("video.mp4")
+subclip = clip.subclipped(10, 20)
+subclip.write_videofile("output.mp4")
+clip.close()
+```
+
+```python MovieLite
+clip = VideoClip("video.mp4")
+subclip = clip.subclip(10, 20)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(subclip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+### Concatenating Videos
+
+<CodeGroup>
+```python MoviePy
+from moviepy import VideoFileClip, concatenate_videoclips
+
+clip1 = VideoFileClip("intro.mp4")
+clip2 = VideoFileClip("main.mp4")
+clip3 = VideoFileClip("outro.mp4")
+
+final = concatenate_videoclips([clip1, clip2, clip3])
+final.write_videofile("output.mp4")
+
+clip1.close()
+clip2.close()
+clip3.close()
+final.close()
+```
+
+```python MovieLite
+from movielite import VideoClip, VideoWriter
+
+clip1 = VideoClip("intro.mp4", start=0)
+clip2 = VideoClip("main.mp4", start=clip1.end)
+clip3 = VideoClip("outro.mp4", start=clip2.end)
+
+writer = VideoWriter("output.mp4", fps=30)
+writer.add_clips([clip1, clip2, clip3])
+writer.write()
+
+clip1.close()
+clip2.close()
+clip3.close()
+```
+</CodeGroup>
+
+<Info>
+In MovieLite, you control timing explicitly using `start` parameters instead of relying on concatenation functions.
+</Info>
+
+## Transformations
+
+### Resizing
+
+<CodeGroup>
+```python MoviePy
+clip = VideoFileClip("video.mp4")
+resized = clip.resized(width=1280, height=720)
+resized.write_videofile("output.mp4")
+clip.close()
+```
+
+```python MovieLite
+clip = VideoClip("video.mp4")
+clip.set_size(width=1280, height=720)
+
+writer = VideoWriter("output.mp4", fps=clip.fps, size=(1280, 720))
+writer.add_clip(clip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+### Dynamic Scaling/Zoom
+
+<CodeGroup>
+```python MoviePy
+clip = VideoFileClip("video.mp4")
+
+# Zoom from 1.0x to 1.5x
+def zoom_scale(t):
+    progress = min(t / clip.duration, 1.0)
+    return 1.0 + 0.5 * progress
+
+clip = clip.resized(zoom_scale)
+clip.write_videofile("output.mp4")
+clip.close()
+```
+
+```python MovieLite
+clip = VideoClip("video.mp4")
+
+# Zoom from 1.0x to 1.5x
+def zoom_scale(t):
+    progress = min(t / clip.duration, 1.0)
+    return 1.0 + 0.5 * progress
+
+clip.set_scale(zoom_scale)
+
+writer = VideoWriter("output.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+### Positioning
+
+<CodeGroup>
+```python MoviePy
+clip = VideoFileClip("video.mp4")
+positioned = clip.with_position((100, 100))
+
+# Or centered
+centered = clip.with_position('center')
+```
+
+```python MovieLite
+clip = VideoClip("video.mp4")
+clip.set_position((100, 100))
+
+# Centered (manual calculation)
+clip.set_position((
+    (1920 - clip.size[0]) // 2,
+    (1080 - clip.size[1]) // 2
+))
+```
+</CodeGroup>
+
+<Warning>
+MovieLite currently doesn't support string-based positioning like `'center'`. You need to calculate positions manually. This is on the roadmap for future releases.
+</Warning>
+
+### Opacity
+
+<CodeGroup>
+```python MoviePy
+clip = VideoFileClip("video.mp4")
+clip = clip.with_opacity(0.5)
+clip.write_videofile("output.mp4")
+```
+
+```python MovieLite
+clip = VideoClip("video.mp4")
+clip.set_opacity(0.5)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+### Speed Control
+
+<CodeGroup>
+```python MoviePy
+clip = VideoFileClip("video.mp4")
+fast = clip.with_speed_scaled(2.0)  # 2x speed
+slow = clip.with_speed_scaled(0.5)  # 0.5x speed (slow motion)
+```
+
+```python MovieLite
+clip = VideoClip("video.mp4")
+clip.set_speed(2.0)  # 2x speed
+# or
+clip.set_speed(0.5)  # 0.5x speed (slow motion)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+## Visual Effects
+
+### Fade In/Out
+
+<CodeGroup>
+```python MoviePy
+from moviepy import VideoFileClip
+from moviepy.video.fx import FadeIn, FadeOut
+
+clip = VideoFileClip("video.mp4")
+clip = clip.with_effects([FadeIn(1.0), FadeOut(1.5)])
+clip.write_videofile("output.mp4")
+clip.close()
+```
+
+```python MovieLite
+from movielite import VideoClip, VideoWriter, vfx
+
+clip = VideoClip("video.mp4")
+clip.add_effect(vfx.FadeIn(1.0)).add_effect(vfx.FadeOut(1.5))
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+### Blur
+
+<CodeGroup>
+```python MoviePy
+from moviepy.video.fx import GaussianBlur
+
+clip = VideoFileClip("video.mp4")
+clip = clip.with_effects([GaussianBlur(5)])
+clip.write_videofile("output.mp4")
+```
+
+```python MovieLite
+from movielite import vfx
+
+clip = VideoClip("video.mp4")
+clip.add_effect(vfx.Blur(intensity=5.0))
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+### Color Adjustments
+
+<CodeGroup>
+```python MoviePy
+from moviepy.video.fx import BlackAndWhite, Brightness
+
+clip = VideoFileClip("video.mp4")
+clip = clip.with_effects([
+    Brightness(1.2),
+    BlackAndWhite()
+])
+clip.write_videofile("output.mp4")
+```
+
+```python MovieLite
+from movielite import vfx
+
+clip = VideoClip("video.mp4")
+clip.add_effect(vfx.Brightness(1.2))
+clip.add_effect(vfx.BlackAndWhite())
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+## Text Overlays
+
+<CodeGroup>
+```python MoviePy
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
+
+video = VideoFileClip("video.mp4")
+text = TextClip(
+    'arial.ttf',
+    "Hello World",
+    font_size=60,
+    color='white'
+)
+text = text.with_duration(video.duration)
+text = text.with_position(('center', 100))
+
+final = CompositeVideoClip([video, text])
+final.write_videofile("output.mp4")
+
+video.close()
+final.close()
+```
+
+```python MovieLite
+from movielite import VideoClip, TextClip, VideoWriter
+from pictex import Canvas
+
+video = VideoClip("video.mp4")
+
+canvas = Canvas().font_family("Arial").font_size(60).color("white")
+text = TextClip(
+    "Hello World",
+    start=0,
+    duration=video.duration,
+    canvas=canvas
+)
+text.set_position((
+    video.size[0] // 2 - text.size[0] // 2,
+    100
+))
+
+writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, text])
+writer.write()
+
+video.close()
+```
+</CodeGroup>
+
+<Info>
+MovieLite uses the [pictex](https://pypi.org/project/pictex/) library for advanced text styling with gradients, shadows, and more.
+</Info>
+
+## Image Clips
+
+<CodeGroup>
+```python MoviePy
+from moviepy import ImageClip
+
+img = ImageClip("image.png")
+img = img.with_duration(5)
+img.write_videofile("output.mp4", fps=30)
+```
+
+```python MovieLite
+from movielite import ImageClip, VideoWriter
+
+img = ImageClip("image.png", duration=5)
+
+writer = VideoWriter("output.mp4", fps=30)
+writer.add_clip(img)
+writer.write()
+```
+</CodeGroup>
+
+## Compositing Multiple Clips
+
+<CodeGroup>
+```python MoviePy
+from moviepy import VideoFileClip, CompositeVideoClip
+
+background = VideoFileClip("bg.mp4")
+overlay = VideoFileClip("overlay.mp4")
+
+overlay = overlay.with_opacity(0.5)
+overlay = overlay.resized(width=320)
+overlay = overlay.with_position((20, 20))
+
+final = CompositeVideoClip([background, overlay])
+final.write_videofile("output.mp4")
+
+background.close()
+overlay.close()
+final.close()
+```
+
+```python MovieLite
+from movielite import VideoClip, VideoWriter
+
+background = VideoClip("bg.mp4", start=0)
+overlay = VideoClip("overlay.mp4", start=0)
+
+overlay.set_opacity(0.5)
+overlay.set_size(width=320)
+overlay.set_position((20, 20))
+
+writer = VideoWriter("output.mp4", fps=background.fps, size=background.size)
+writer.add_clips([background, overlay])
+writer.write()
+
+background.close()
+overlay.close()
+```
+</CodeGroup>
+
+## Transitions
+
+<CodeGroup>
+```python MoviePy
+from moviepy import VideoFileClip, concatenate_videoclips
+from moviepy.video.fx import CrossFadeIn
+
+clip1 = VideoFileClip("scene1.mp4")
+clip2 = VideoFileClip("scene2.mp4")
+
+clip2 = clip2.with_effects([CrossFadeIn(1.0)])
+final = concatenate_videoclips([clip1, clip2], padding=-1)
+
+final.write_videofile("output.mp4")
+```
+
+```python MovieLite
+from movielite import VideoClip, VideoWriter, vtx
+
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4, duration=5)  # 1s overlap
+
+clip1.add_transition(clip2, vtx.CrossFade(duration=1))
+
+writer = VideoWriter("output.mp4", fps=30)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+</CodeGroup>
+
+## Audio Handling
+
+### Adding Background Music
+
+<CodeGroup>
+```python MoviePy
+from moviepy import VideoFileClip, AudioFileClip
+
+video = VideoFileClip("video.mp4")
+music = AudioFileClip("music.mp3")
+
+music = music.with_volume_scaled(0.5)
+video = video.with_audio(music)
+video.write_videofile("output.mp4")
+
+video.close()
+music.close()
+```
+
+```python MovieLite
+from movielite import VideoClip, AudioClip, VideoWriter
+
+video = VideoClip("video.mp4")
+music = AudioClip("music.mp3", start=0, volume=0.5)
+
+writer = VideoWriter("output.mp4", fps=video.fps)
+writer.add_clip(video)  # Video includes its own audio
+writer.add_clip(music)  # Background music mixed in
+writer.write()
+
+video.close()
+```
+</CodeGroup>
+
+### Audio Fade Effects
+
+<CodeGroup>
+```python MoviePy
+from moviepy import AudioFileClip
+from moviepy.audio.fx import AudioFadeIn, AudioFadeOut
+
+audio = AudioFileClip("music.mp3")
+audio = audio.with_effects([
+    AudioFadeIn(2.0),
+    AudioFadeOut(2.0)
+])
+```
+
+```python MovieLite
+from movielite import AudioClip, afx
+
+audio = AudioClip("music.mp3", start=0)
+audio.add_effect(afx.FadeIn(2.0))
+audio.add_effect(afx.FadeOut(2.0))
+```
+</CodeGroup>
+
+## Alpha/Transparency
+
+<CodeGroup>
+```python MoviePy
+from moviepy import VideoFileClip, CompositeVideoClip
+
+main = VideoFileClip("main.mp4")
+alpha_clip = VideoFileClip("transparent.mov", has_mask=True)
+
+alpha_clip = alpha_clip.with_position('center')
+final = CompositeVideoClip([main, alpha_clip])
+final.write_videofile("output.mp4")
+```
+
+```python MovieLite
+from movielite import VideoClip, AlphaVideoClip, VideoWriter
+
+main = VideoClip("main.mp4")
+alpha_clip = AlphaVideoClip("transparent.mov")
+
+alpha_clip.set_position((
+    (main.size[0] - alpha_clip.size[0]) // 2,
+    (main.size[1] - alpha_clip.size[1]) // 2
+))
+
+writer = VideoWriter("output.mp4", fps=main.fps, size=main.size)
+writer.add_clips([main, alpha_clip])
+writer.write()
+
+main.close()
+alpha_clip.close()
+```
+</CodeGroup>
+
+<Note>
+Use `AlphaVideoClip` instead of `VideoClip` when you need transparency support. It loads frames in BGRA format.
+</Note>
+
+## Custom Frame Transformations
+
+<CodeGroup>
+```python MoviePy
+import cv2
+from moviepy import VideoFileClip
+
+def sepia_effect(frame):
+    kernel = np.array([
+        [0.131, 0.534, 0.272],
+        [0.168, 0.686, 0.349],
+        [0.189, 0.769, 0.393]
+    ])
+    return cv2.transform(frame, kernel)
+
+clip = VideoFileClip("video.mp4")
+clip = clip.image_transform(sepia_effect)
+clip.write_videofile("output.mp4")
+```
+
+```python MovieLite
+import cv2
+import numpy as np
+from movielite import VideoClip, VideoWriter
+
+def sepia_effect(frame: np.ndarray, t: float) -> np.ndarray:
+    kernel = np.array([
+        [0.131, 0.534, 0.272],
+        [0.168, 0.686, 0.349],
+        [0.189, 0.769, 0.393]
+    ])
+    sepia = cv2.transform(frame, kernel)
+    return np.clip(sepia, 0, 255).astype(np.uint8)
+
+clip = VideoClip("video.mp4")
+clip.add_transform(sepia_effect)
+
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write()
+clip.close()
+```
+</CodeGroup>
+
+<Info>
+In MovieLite, custom transforms receive both the frame and the current time `t`, allowing for time-based effects.
+</Info>
+
+## Parallel Rendering
+
+<CodeGroup>
+```python MoviePy
+clip = VideoFileClip("video.mp4")
+clip.write_videofile(
+    "output.mp4",
+    threads=8  # Use 8 threads
+)
+```
+
+```python MovieLite
+from movielite import VideoQuality
+
+clip = VideoClip("video.mp4")
+writer = VideoWriter("output.mp4", fps=clip.fps)
+writer.add_clip(clip)
+writer.write(
+    processes=8,  # Use 8 processes
+    video_quality=VideoQuality.HIGH
+)
+clip.close()
+```
+</CodeGroup>
+
+## Quality Settings
+
+<CodeGroup>
+```python MoviePy
+clip.write_videofile(
+    "output.mp4",
+    preset="slow",  # x264 preset
+    ffmpeg_params=["-crf", "18"]  # CRF quality
+)
+```
+
+```python MovieLite
+from movielite import VideoQuality
+
+writer.write(
+    video_quality=VideoQuality.VERY_HIGH  # or HIGH, MIDDLE, LOW
+)
+```
+</CodeGroup>
+
+<Warning>
+MovieLite currently offers preset quality levels. Fine-grained FFmpeg parameter control is on the roadmap.
+</Warning>
+
+## Migration Checklist
+
+<Steps>
+  <Step title="Update imports">
+    Replace `from moviepy import ...` with `from movielite import ...`
+  </Step>
+  
+  <Step title="Change clip loading">
+    Replace `VideoFileClip` with `VideoClip` and `AudioFileClip` with `AudioClip`
+  </Step>
+  
+  <Step title="Use VideoWriter for output">
+    Replace `clip.write_videofile()` with `VideoWriter` + `add_clip()` + `write()`
+  </Step>
+  
+  <Step title="Update method names">
+    - `with_effects()` → `add_effect()`
+    - `with_position()` → `set_position()`
+    - `with_opacity()` → `set_opacity()`
+    - `resized()` → `set_size()` or `set_scale()`
+    - `subclipped()` → `subclip()`
+  </Step>
+  
+  <Step title="Handle compositing">
+    Replace `CompositeVideoClip` with explicit timing using `start` parameters
+  </Step>
+  
+  <Step title="Update text rendering">
+    Replace MoviePy's `TextClip` with MovieLite's `TextClip` + pictex `Canvas`
+  </Step>
+  
+  <Step title="Test and optimize">
+    Run your code and measure the performance improvements!
+  </Step>
+</Steps>
+
+## Key Differences Summary
+
+<AccordionGroup>
+  <Accordion title="API Design">
+    - MoviePy uses immutable clips with `.with_*()` methods that return new clips
+    - MovieLite uses mutable clips with `.set_*()` methods that modify and return self for chaining
+    - MovieLite separates composition (`VideoWriter`) from clip manipulation
+  </Accordion>
+  
+  <Accordion title="Output Formats">
+    - MoviePy supports many codecs and formats
+    - MovieLite currently only supports MP4 with H.264 video and AAC audio
+    - More format support is planned for future releases
+  </Accordion>
+  
+  <Accordion title="Performance">
+    - MovieLite is 3-5x faster on common tasks due to Numba JIT compilation
+    - MovieLite is CPU-optimized (GPU support planned)
+    - MovieLite has better memory management for long videos
+  </Accordion>
+  
+  <Accordion title="Text Rendering">
+    - MoviePy uses ImageMagick or PIL for text
+    - MovieLite uses the pictex library for advanced styling
+    - MovieLite text supports gradients, shadows, and complex layouts
+  </Accordion>
+  
+  <Accordion title="Effects">
+    - Both libraries support chaining effects
+    - MovieLite's effects are JIT-compiled for better performance
+    - Effect names and parameters are largely compatible
+  </Accordion>
+</AccordionGroup>
+
+## Common Pitfalls
+
+<Warning>
+**Remember to close clips**: Always call `clip.close()` when done to free resources, especially when working with multiple videos.
+</Warning>
+
+<Warning>
+**Manual position calculation**: MovieLite doesn't support string-based positioning like `'center'` yet. Calculate positions manually.
+</Warning>
+
+<Warning>
+**Format limitations**: MovieLite only outputs MP4 files. If you need other formats, use FFmpeg to convert the output.
+</Warning>
+
+<Note>
+**Timing in concatenation**: Instead of using concatenation functions, set explicit `start` times for each clip. This gives you more control.
+</Note>
+
+## Need Help?
+
+If you encounter issues during migration:
+
+- Check the [API Reference](/api/video-clip) for detailed method documentation
+- Review the [examples](https://github.com/francozanardi/movielite/tree/main/examples) directory
+- Open an issue on [GitHub](https://github.com/francozanardi/movielite/issues)
+
+## What's Not Supported (Yet)
+
+Some MoviePy features are not yet available in MovieLite:
+
+- GPU acceleration
+- Output formats other than MP4/H.264
+- String-based positioning (`'center'`, `'top'`, etc.)
+- Some advanced effects (3D transforms, etc.)
+- Direct FFmpeg parameter control
+
+These features are on the [roadmap](/resources/roadmap) for future releases.

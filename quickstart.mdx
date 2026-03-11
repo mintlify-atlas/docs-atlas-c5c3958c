@@ -1,80 +1,577 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Create your first video with MovieLite in minutes
 ---
 
-## Get started in three steps
+## Your First Video
 
-Get your documentation site running locally and make your first customization.
+Let's create a simple video to get you started with MovieLite. This guide will walk you through loading a video, applying effects, and rendering the output.
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Import MovieLite">
+    Start by importing the necessary modules:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```python
+    from movielite import VideoClip, VideoWriter, vfx
+    ```
+  </Step>
 
-### Step 2: Deploy your changes
+  <Step title="Load a video clip">
+    Load your input video:
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```python
+    clip = VideoClip("input.mp4")
+    ```
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Apply effects">
+    Add fade in and fade out effects:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```python
+    clip.add_effect(vfx.FadeIn(duration=1.0))
+    clip.add_effect(vfx.FadeOut(duration=1.5))
+    ```
+  </Step>
 
-### Step 3: Go live
+  <Step title="Create a writer and render">
+    Set up the writer and render your video:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    ```python
+    writer = VideoWriter("output.mp4", fps=clip.fps, size=clip.size)
+    writer.add_clip(clip)
+    writer.write()
+    ```
+  </Step>
 
-## Next steps
+  <Step title="Clean up">
+    Close the clip to release resources:
 
-Now that you have your docs running, explore these key features:
+    ```python
+    clip.close()
+    ```
+  </Step>
+</Steps>
 
-<CardGroup cols={2}>
+### Complete Example
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+Here's the complete code:
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+```python
+from movielite import VideoClip, VideoWriter, vfx
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+# Load video
+clip = VideoClip("input.mp4")
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+# Apply effects
+clip.add_effect(vfx.FadeIn(duration=1.0))
+clip.add_effect(vfx.FadeOut(duration=1.5))
 
-</CardGroup>
+# Render
+writer = VideoWriter("output.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+# Clean up
+clip.close()
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+The `writer.write()` method will display a progress bar showing rendering progress.
 </Note>
+
+## Common Operations
+
+### Extract a Subclip
+
+Extract a specific segment from a video:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+segment = clip.subclip(5, 15)  # Extract seconds 5-15
+
+writer = VideoWriter("output_subclip.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(segment)
+writer.write()
+
+clip.close()
+```
+
+### Resize Video
+
+Resize a video to specific dimensions:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("input.mp4")
+clip.set_size(width=1280, height=720)  # Resize to 720p
+
+writer = VideoWriter("output_720p.mp4", fps=clip.fps, size=(1280, 720))
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Concatenate Videos
+
+Join multiple videos sequentially:
+
+```python
+from movielite import VideoClip, VideoWriter
+
+clip1 = VideoClip("intro.mp4", start=0)
+clip2 = VideoClip("main.mp4", start=clip1.duration)
+clip3 = VideoClip("outro.mp4", start=clip1.duration + clip2.duration)
+
+total_duration = clip1.duration + clip2.duration + clip3.duration
+
+writer = VideoWriter(
+    "final.mp4",
+    fps=clip1.fps,
+    size=clip1.size,
+    duration=total_duration
+)
+writer.add_clips([clip1, clip2, clip3])
+writer.write()
+
+clip1.close()
+clip2.close()
+clip3.close()
+```
+
+## Adding Text Overlays
+
+Create professional text overlays using the pictex library:
+
+<Steps>
+  <Step title="Import required modules">
+    ```python
+    from movielite import VideoClip, TextClip, VideoWriter, vfx
+    from pictex import Canvas, LinearGradient, Shadow
+    ```
+  </Step>
+
+  <Step title="Create styled text">
+    Create a canvas with custom styling:
+
+    ```python
+    canvas = (
+        Canvas()
+        .font_family("Arial")
+        .font_size(80)
+        .color("white")
+        .padding(30)
+        .background_color(LinearGradient(["#FF6B6B", "#4ECDC4"]))
+        .border_radius(15)
+        .text_shadows(Shadow(offset=(3, 3), blur_radius=5, color="black"))
+    )
+    ```
+  </Step>
+
+  <Step title="Create text clip">
+    ```python
+    video = VideoClip("background.mp4")
+    text = TextClip("Hello World", start=2, duration=3, canvas=canvas)
+    text.set_position((video.size[0] // 2 - text.size[0] // 2, 100))
+    text.add_effect(vfx.FadeIn(0.5))
+    text.add_effect(vfx.FadeOut(0.5))
+    ```
+  </Step>
+
+  <Step title="Render with overlay">
+    ```python
+    writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+    writer.add_clip(video)
+    writer.add_clip(text)
+    writer.write()
+
+    video.close()
+    ```
+  </Step>
+</Steps>
+
+### Complete Text Overlay Example
+
+```python
+from movielite import VideoClip, TextClip, VideoWriter, vfx
+from pictex import Canvas, LinearGradient, Shadow
+
+# Create styled text canvas
+canvas = (
+    Canvas()
+    .font_family("Arial")
+    .font_size(80)
+    .color("white")
+    .padding(30)
+    .background_color(LinearGradient(["#FF6B6B", "#4ECDC4"]))
+    .border_radius(15)
+    .text_shadows(Shadow(offset=(3, 3), blur_radius=5, color="black"))
+)
+
+video = VideoClip("background.mp4")
+text = TextClip("Hello World", start=2, duration=3, canvas=canvas)
+text.set_position((video.size[0] // 2 - text.size[0] // 2, 100))
+text.add_effect(vfx.FadeIn(0.5))
+text.add_effect(vfx.FadeOut(0.5))
+
+writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)
+writer.add_clip(text)
+writer.write()
+
+video.close()
+```
+
+## Applying Visual Effects
+
+MovieLite includes a comprehensive library of visual effects:
+
+### Fade Effects
+
+```python
+from movielite import VideoClip, VideoWriter, vfx
+
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.FadeIn(duration=2.0))
+clip.add_effect(vfx.FadeOut(duration=1.5))
+
+writer = VideoWriter("output_fade.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Color Adjustments
+
+```python
+from movielite import VideoClip, VideoWriter, vfx
+
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Saturation(factor=1.5))  # Increase saturation
+clip.add_effect(vfx.Brightness(factor=1.3))  # Increase brightness
+clip.add_effect(vfx.Contrast(factor=1.4))    # Increase contrast
+
+writer = VideoWriter("output_enhanced.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Zoom Effects
+
+```python
+from movielite import VideoClip, VideoWriter, vfx
+
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.ZoomIn(duration=5.0, from_scale=0.5, to_scale=1.0))
+
+writer = VideoWriter("output_zoom.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Blur Effects
+
+```python
+from movielite import VideoClip, VideoWriter, vfx
+
+clip = VideoClip("input.mp4")
+clip.add_effect(vfx.Blur(intensity=7.0))  # Static blur
+
+writer = VideoWriter("output_blur.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+### Combining Multiple Effects
+
+```python
+from movielite import VideoClip, VideoWriter, vfx
+
+clip = VideoClip("input.mp4")
+
+# Apply multiple effects in sequence
+clip.add_effect(vfx.FadeIn(1.0))
+clip.add_effect(vfx.Saturation(1.3))
+clip.add_effect(vfx.Contrast(1.2))
+clip.add_effect(vfx.Vignette(intensity=0.4, radius=0.8))
+clip.add_effect(vfx.FadeOut(1.5))
+
+writer = VideoWriter("output_combined.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+## Working with Transitions
+
+Create smooth transitions between clips:
+
+```python
+from movielite import VideoClip, VideoWriter, vtx
+
+# Clips must overlap for transition
+clip1 = VideoClip("scene1.mp4", start=0, duration=5)
+clip2 = VideoClip("scene2.mp4", start=4.5, duration=5)  # 0.5s overlap
+
+# Apply crossfade during overlap
+clip1.add_transition(clip2, vtx.CrossFade(duration=0.5))
+
+total_duration = clip1.duration + clip2.duration - 0.5  # Account for overlap
+
+writer = VideoWriter("output_crossfade.mp4", fps=30, size=clip1.size, duration=total_duration)
+writer.add_clips([clip1, clip2])
+writer.write()
+
+clip1.close()
+clip2.close()
+```
+
+<Note>
+For transitions to work, clips must have overlapping time ranges. The transition duration should match the overlap.
+</Note>
+
+## Audio Mixing
+
+Mix multiple audio tracks:
+
+```python
+from movielite import VideoClip, AudioClip, VideoWriter, afx
+
+video = VideoClip("video.mp4")
+
+# Background music at 50% volume
+music = AudioClip("background.mp3", start=0, volume=0.5)
+music.add_effect(afx.FadeIn(2))
+music.add_effect(afx.FadeOut(2))
+
+# Sound effect at specific time
+sfx = AudioClip("ding.wav", start=5.0, volume=1.0)
+
+writer = VideoWriter("output.mp4", fps=video.fps, size=video.size)
+writer.add_clip(video)  # Video includes its own audio track
+writer.add_clip(music)
+writer.add_clip(sfx)
+writer.write()
+
+video.close()
+```
+
+## Optimizing Performance
+
+### Use Multiprocessing
+
+For faster rendering, use multiple CPU cores:
+
+```python
+from movielite import VideoClip, VideoWriter, VideoQuality
+
+clip = VideoClip("input.mp4")
+
+writer = VideoWriter("output.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+
+# Use 8 parallel processes for rendering
+writer.write(processes=8, video_quality=VideoQuality.HIGH)
+
+clip.close()
+```
+
+<Info>
+The optimal number of processes depends on your CPU cores. Generally, use the number of physical cores minus 1 to leave resources for system operations.
+</Info>
+
+### Video Quality Presets
+
+Choose from different quality presets:
+
+```python
+from movielite import VideoWriter, VideoQuality
+
+writer = VideoWriter("output.mp4", fps=30, size=(1920, 1080))
+
+# Quality options:
+# VideoQuality.LOW      - Faster encoding, lower quality
+# VideoQuality.MIDDLE   - Balanced (default)
+# VideoQuality.HIGH     - Higher quality, slower encoding
+# VideoQuality.VERY_HIGH - Maximum quality, slowest encoding
+
+writer.write(video_quality=VideoQuality.HIGH)
+```
+
+## Creating Image Clips
+
+Use static images in your videos:
+
+```python
+from movielite import ImageClip, VideoWriter, vfx
+
+# Create a 10-second clip from an image
+image = ImageClip("photo.jpg", start=0, duration=10)
+image.add_effect(vfx.FadeIn(1.0))
+image.add_effect(vfx.FadeOut(1.0))
+image.add_effect(vfx.KenBurns(
+    start_scale=1.0,
+    end_scale=1.3,
+    start_position=(0, 0),
+    end_position=(-100, -50)
+))
+
+writer = VideoWriter("output.mp4", fps=30, size=image.size)
+writer.add_clip(image)
+writer.write()
+```
+
+## Creating a Slideshow
+
+Combine multiple images with transitions:
+
+```python
+from movielite import ImageClip, VideoWriter, vtx
+
+# Create image clips
+images = [
+    ImageClip("photo1.jpg", start=0, duration=3),
+    ImageClip("photo2.jpg", start=2.5, duration=3),     # 0.5s overlap
+    ImageClip("photo3.jpg", start=5.0, duration=3),     # 0.5s overlap
+    ImageClip("photo4.jpg", start=7.5, duration=3),     # 0.5s overlap
+]
+
+# Apply crossfade between each
+for i in range(len(images) - 1):
+    images[i].add_transition(images[i + 1], vtx.CrossFade(duration=0.5))
+
+total_duration = 9.5  # 3 + 3 + 3 + 3 - 0.5 - 0.5 - 0.5
+
+writer = VideoWriter("slideshow.mp4", fps=30, size=images[0].size, duration=total_duration)
+writer.add_clips(images)
+writer.write()
+```
+
+## Custom Frame Transformations
+
+Apply custom pixel-level transformations:
+
+```python
+import cv2
+import numpy as np
+from movielite import VideoClip, VideoWriter
+
+clip = VideoClip("video.mp4")
+
+# Apply custom sepia effect
+def sepia_transform(frame: np.ndarray, t: float) -> np.ndarray:
+    kernel = np.array([
+        [0.131, 0.534, 0.272],
+        [0.168, 0.686, 0.349],
+        [0.189, 0.769, 0.393]
+    ])
+    sepia = cv2.transform(frame, kernel)
+    return np.clip(sepia, 0, 255).astype(np.uint8)
+
+clip.add_transform(sepia_transform)
+
+writer = VideoWriter("output_sepia.mp4", fps=clip.fps, size=clip.size)
+writer.add_clip(clip)
+writer.write()
+
+clip.close()
+```
+
+<Note>
+Custom transformations receive each frame as a NumPy array and the current time `t` in seconds. Return the modified frame.
+</Note>
+
+## Next Steps
+
+Now that you've learned the basics, explore more advanced features:
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="https://github.com/francozanardi/movielite/blob/main/docs/api.md">
+    Detailed documentation of all classes and methods
+  </Card>
+  <Card title="Examples" icon="code" href="https://github.com/francozanardi/movielite/tree/main/examples">
+    More code examples and use cases
+  </Card>
+  <Card title="Advanced Topics" icon="graduation-cap" href="https://github.com/francozanardi/movielite/blob/main/docs/advanced.md">
+    Custom effects, masking, and performance optimization
+  </Card>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/francozanardi/movielite">
+    Source code and issue tracker
+  </Card>
+</CardGroup>
+
+## Common Patterns
+
+### Picture-in-Picture Effect
+
+```python
+from movielite import VideoClip, VideoWriter
+
+background = VideoClip("background.mp4", start=0)
+small_clip = VideoClip("small.mp4", start=0)
+
+small_clip.set_size(width=320, height=180)
+small_clip.set_position((background.size[0] - 340, 20))  # Top-right corner
+small_clip.set_opacity(0.9)
+
+writer = VideoWriter("pip_output.mp4", fps=background.fps, size=background.size)
+writer.add_clips([background, small_clip])
+writer.write()
+
+background.close()
+small_clip.close()
+```
+
+### Lower Third
+
+```python
+from movielite import VideoClip, ImageClip, TextClip, VideoWriter, vfx
+from pictex import Canvas
+
+video = VideoClip("input.mp4")
+
+# Semi-transparent background bar
+bar = ImageClip.from_color(
+    color=(0, 0, 0, 200),
+    size=(video.size[0], 120),
+    duration=5
+)
+bar.set_position((0, video.size[1] - 120))
+bar.add_effect(vfx.FadeIn(0.5))
+bar.add_effect(vfx.FadeOut(0.5))
+
+# Name text
+canvas_name = Canvas().font_size(50).color("white").background_color("transparent")
+name = TextClip("John Doe", start=0, duration=5, canvas=canvas_name)
+name.set_position((40, video.size[1] - 100))
+name.add_effect(vfx.FadeIn(0.5))
+name.add_effect(vfx.FadeOut(0.5))
+
+# Title text
+canvas_title = Canvas().font_size(30).color("#AAAAAA").background_color("transparent")
+job_title = TextClip("Software Engineer", start=0, duration=5, canvas=canvas_title)
+job_title.set_position((40, video.size[1] - 50))
+job_title.add_effect(vfx.FadeIn(0.5))
+job_title.add_effect(vfx.FadeOut(0.5))
+
+writer = VideoWriter("lower_third.mp4", fps=video.fps, size=video.size)
+writer.add_clips([video, bar, name, job_title])
+writer.write()
+
+video.close()
+```
+
+<Warning>
+Always remember to call `.close()` on video clips when you're done to release file handles and free memory.
+</Warning>
